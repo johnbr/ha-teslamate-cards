@@ -18,7 +18,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
-from .config_flow import dsn_from_entry
+from .config_flow import async_resolve_ssl, dsn_from_entry
 from .const import DATA_DB, DOMAIN
 from .db import DatabaseError, TeslaMateDB
 from .frontend import async_register_frontend
@@ -36,7 +36,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    db = TeslaMateDB(dsn_from_entry(dict(entry.data)))
+    data = dict(entry.data)
+    db = TeslaMateDB(dsn_from_entry(data), await async_resolve_ssl(hass, data))
     try:
         await db.async_connect()
         # Prove the credentials actually reach TeslaMate's schema, not just

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ssl as ssl_module
 import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -39,8 +40,12 @@ class DatabaseError(Exception):
 class TeslaMateDB:
     """A pool plus a short-lived result cache."""
 
-    def __init__(self, dsn: dict[str, Any]) -> None:
+    def __init__(self, dsn: dict[str, Any], ssl: Any = "disable") -> None:
         self._dsn = dsn
+        # Either the string "disable" or a prebuilt ssl.SSLContext. Building the
+        # context is blocking file I/O, so it is the caller's job to do that in
+        # an executor -- see `build_ssl_context`.
+        self._ssl = ssl
         self._pool: asyncpg.Pool | None = None
         self._cache: dict[tuple, tuple[float, list[dict[str, Any]]]] = {}
         self._lock = asyncio.Lock()
@@ -53,6 +58,7 @@ class TeslaMateDB:
                 min_size=POOL_MIN_SIZE,
                 max_size=POOL_MAX_SIZE,
                 timeout=CONNECT_TIMEOUT,
+                ssl=self._ssl,
                 command_timeout=STATEMENT_TIMEOUT_MS / 1000,
                 server_settings={
                     # A runaway query must not pin a connection on a shared cluster.
@@ -110,6 +116,23 @@ class TeslaMateDB:
             self._cache[key] = (time.monotonic(), rows)
 
         return rows
+
+
+def build_ssl_context() -> ssl_module.SSLContext:
+    """Build the TLS context asyncpg should use.
+
+    **Blocking** -- `create_default_context` reads the system CA bundle from
+    disk, so run this in an executor, never on the event loop.
+
+    Verification is left off, matching asyncpg's own "prefer"/"require"
+    behaviour: a TeslaMate database on a private network almost never has a
+    certificate that chains to a public CA, and failing closed there would just
+    push people back to plaintext.
+    """
+    context = ssl_module.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl_module.CERT_NONE
+    return context
 
 
 def _hashable(value: Any) -> Any:

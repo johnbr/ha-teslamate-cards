@@ -3,23 +3,25 @@
     "step": {
       "user": {
         "title": "TeslaMate database",
-        "description": "Connect to the PostgreSQL database TeslaMate logs to. The cards read it directly; nothing is written. A read-only role is recommended — see the documentation.",
+        "description": "Connect to the PostgreSQL database TeslaMate logs to. The cards read it directly; nothing is written. A read-only role is recommended \u2014 see the documentation.",
         "data": {
           "host": "Host",
           "port": "Port",
           "database": "Database name",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "ssl": "Use TLS"
         },
         "data_description": {
           "host": "Use 127.0.0.1 if PostgreSQL runs on the same machine as Home Assistant.",
-          "password": "Leave empty if the database accepts this user without a password."
+          "password": "Leave empty if the database accepts this user without a password.",
+          "ssl": "Leave off for a database on the same host or a private network; PostgreSQL ships with TLS disabled."
         }
       }
     },
     "error": {
       "cannot_connect": "Could not connect, or the user cannot read TeslaMate's tables. Check the host, port, credentials, and that pg_hba.conf allows this user from Home Assistant.",
-      "no_cars": "Connected, but this database has no cars in it — is it really TeslaMate's database?"
+      "no_cars": "Connected, but this database has no cars in it \u2014 is it really TeslaMate's database?"
     },
     "abort": {
       "single_instance_allowed": "TeslaMate Cards is already configured."

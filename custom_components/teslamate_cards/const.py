@@ -21,11 +21,19 @@ CARD_FILENAME: Final = "teslamate-cards.js"
 # Home Assistant has no CONF_DATABASE in homeassistant.const (host/port/username/
 # password all exist, this one does not), so it is defined here.
 CONF_DATABASE: Final = "database"
+CONF_SSL: Final = "ssl"
 
 DEFAULT_HOST: Final = "127.0.0.1"
 DEFAULT_PORT: Final = 5432
 DEFAULT_DATABASE: Final = "teslamate"
 DEFAULT_USER: Final = "teslamate"
+
+# Off by default: TeslaMate's database is normally on the same host or the same
+# private network as Home Assistant (PostgreSQL itself ships with `ssl = off`),
+# and asyncpg's default "prefer" mode builds an SSL context on first connect --
+# which reads ~/.postgresql/postgresql.crt from disk. Inside Home Assistant's
+# event loop that is a blocking call, and HA flags it.
+DEFAULT_SSL: Final = False
 
 # Identifies our connections in pg_stat_activity on a shared cluster.
 APPLICATION_NAME: Final = "ha_teslamate_cards"

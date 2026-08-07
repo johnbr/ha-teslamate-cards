@@ -21,13 +21,15 @@ from homeassistant.const import (
 
 from .const import (
     CONF_DATABASE,
+    CONF_SSL,
     DEFAULT_DATABASE,
     DEFAULT_HOST,
     DEFAULT_PORT,
+    DEFAULT_SSL,
     DEFAULT_USER,
     DOMAIN,
 )
-from .db import DatabaseError, TeslaMateDB
+from .db import DatabaseError, TeslaMateDB, build_ssl_context
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ STEP_USER_SCHEMA = vol.Schema(
         # Optional: a loopback connection to a local PostgreSQL is commonly
         # `trust`, and TeslaMate's own docs cover password auth.
         vol.Optional(CONF_PASSWORD, default=""): str,
+        vol.Optional(CONF_SSL, default=DEFAULT_SSL): bool,
     }
 )
 
@@ -57,6 +60,18 @@ def dsn_from_entry(data: dict[str, Any]) -> dict[str, Any]:
     return dsn
 
 
+async def async_resolve_ssl(hass, data: dict[str, Any]) -> Any:
+    """Return asyncpg's `ssl` argument, built off the event loop.
+
+    asyncpg's default ("prefer") constructs the context itself on first
+    connect, which reads ~/.postgresql/postgresql.crt from disk -- a blocking
+    call inside Home Assistant's event loop.
+    """
+    if not data.get(CONF_SSL):
+        return "disable"
+    return await hass.async_add_executor_job(build_ssl_context)
+
+
 class TeslaMateCardsConfigFlow(ConfigFlow, domain=DOMAIN):
     """Collect and verify the database connection."""
 
@@ -67,7 +82,7 @@ class TeslaMateCardsConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                cars = await _async_validate(user_input)
+                cars = await _async_validate(self.hass, user_input)
             except DatabaseError as err:
                 _LOGGER.debug("TeslaMate database validation failed: %s", err)
                 errors["base"] = "cannot_connect"
@@ -87,9 +102,9 @@ class TeslaMateCardsConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-async def _async_validate(user_input: dict[str, Any]) -> list[dict[str, Any]]:
+async def _async_validate(hass, user_input: dict[str, Any]) -> list[dict[str, Any]]:
     """Connect, read the car list, disconnect."""
-    db = TeslaMateDB(dsn_from_entry(user_input))
+    db = TeslaMateDB(dsn_from_entry(user_input), await async_resolve_ssl(hass, user_input))
     try:
         await db.async_connect()
         return await db.async_cars()
