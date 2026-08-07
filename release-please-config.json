@@ -11,7 +11,8 @@
           "type": "json",
           "path": "custom_components/teslamate_cards/manifest.json",
           "jsonpath": "$.version"
-        }
+        },
+        "src/teslamate-cards.ts"
       ]
     }
   }

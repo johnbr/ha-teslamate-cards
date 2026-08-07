@@ -5,7 +5,12 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.(md|sql)$
+        # Verbatim upstream SQL lives in .sql and in the query modules.
+        exclude: |
+          (?x)^(
+            .*\.(md|sql)|
+            custom_components/.*/queries/.*\.py
+          )$
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json

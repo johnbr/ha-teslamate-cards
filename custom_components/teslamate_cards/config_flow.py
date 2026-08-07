@@ -13,7 +13,6 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import (
-    CONF_DATABASE,
     CONF_HOST,
     CONF_PASSWORD,
     CONF_PORT,
@@ -21,6 +20,7 @@ from homeassistant.const import (
 )
 
 from .const import (
+    CONF_DATABASE,
     DEFAULT_DATABASE,
     DEFAULT_HOST,
     DEFAULT_PORT,

@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .vampire_drain import VAMPIRE_DRAIN_SQL
+
 
 class UnknownQuery(KeyError):
     """A card asked for a query id that is not registered."""
@@ -37,5 +39,9 @@ QUERIES: dict[str, Query] = {
         sql="SELECT id, name, model, marketing_name, efficiency FROM cars ORDER BY id",
         description="Cars TeslaMate is logging; populates the car picker.",
         needs_context=False,
+    ),
+    "vampire_drain": Query(
+        sql=VAMPIRE_DRAIN_SQL,
+        description="Standby losses between drives and charges (Vampire Drain dashboard).",
     ),
 }

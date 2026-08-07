@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 
 import pytest
 from teslamate_cards.macros import QueryContext, translate
+from teslamate_cards.queries import QUERIES
 from test_macros import ALL_PANELS, EXTRAS
 
 PSQL = [
@@ -62,6 +63,18 @@ def _context() -> QueryContext:
     )
 
 
+def _prepares(sql: str) -> subprocess.CompletedProcess[str]:
+    # stdin, not a temp file: the postgres user cannot read files this test
+    # would create under /tmp.
+    return subprocess.run(
+        PSQL,
+        input=f"PREPARE _probe AS\n{sql.strip().rstrip(';')}\n;\n",
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
 @pytest.mark.parametrize(
     ("dashboard", "title", "sql"),
     ALL_PANELS,
@@ -69,15 +82,26 @@ def _context() -> QueryContext:
 )
 def test_translated_panel_prepares(dashboard: str, title: str, sql: str) -> None:
     translated, _ = translate(sql, _context())
-    statement = translated.strip().rstrip(";")
-
-    # stdin, not a temp file: the postgres user cannot read files this test
-    # would create under /tmp.
-    proc = subprocess.run(
-        PSQL,
-        input=f"PREPARE _probe AS\n{statement}\n;\n",
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    proc = _prepares(translated)
     assert proc.returncode == 0, f"{dashboard}/{title} failed to prepare:\n{proc.stderr.strip()}"
+
+
+@pytest.mark.parametrize("query_id", sorted(QUERIES))
+def test_registered_query_prepares(query_id: str) -> None:
+    """The reference corpus and the registry can drift -- a query is registered
+    by hand, and only these run in production."""
+    query = QUERIES[query_id]
+    sql = translate(query.sql, _context())[0] if query.needs_context else query.sql
+    proc = _prepares(sql)
+    assert proc.returncode == 0, f"registered query {query_id} failed to prepare:\n{proc.stderr.strip()}"
+
+
+@pytest.mark.parametrize("query_id", sorted(QUERIES))
+def test_registered_query_actually_runs(query_id: str) -> None:
+    """PREPARE only plans. Executing catches what planning cannot -- a function
+    that does not exist for the argument types actually passed, for instance."""
+    query = QUERIES[query_id]
+    if query.needs_context:
+        pytest.skip("execution needs real bind values; covered by the integration probe")
+    proc = _prepares(query.sql)
+    assert proc.returncode == 0

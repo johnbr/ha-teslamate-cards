@@ -99,6 +99,28 @@ def test_single_config_entry_matches_the_abort_string() -> None:
         assert "single_instance_allowed" in aborts
 
 
+def test_card_bundle_is_committed() -> None:
+    """HACS installs straight from the repo, so a missing bundle ships no cards."""
+    bundle = COMPONENT_DIR / "frontend" / "teslamate-cards.js"
+    assert bundle.is_file(), "run 'npm run build'"
+    assert bundle.stat().st_size > 1000
+
+
+def test_card_version_banner_matches_manifest() -> None:
+    """The banner is release-please's marker and the cache-buster's twin; if it
+    drifts from the manifest, the released bundle reports the wrong version."""
+    manifest_version = _load(COMPONENT_DIR / "manifest.json")["version"]
+    source = (REPO_ROOT / "src" / "teslamate-cards.ts").read_text(encoding="utf-8")
+    assert f'"{manifest_version}"; // x-release-please-version' in source
+
+
+def test_every_registered_card_is_in_the_bundle() -> None:
+    """A card registered in Python but absent from the bundle renders nothing."""
+    bundle = (COMPONENT_DIR / "frontend" / "teslamate-cards.js").read_text(encoding="utf-8")
+    for element in ("teslamate-vampire-drain-card",):
+        assert element in bundle, f"{element} missing from the built bundle"
+
+
 def test_reference_sql_present_for_every_dashboard() -> None:
     """The ported queries are checked against these; losing one loses the spec."""
     for name in DASHBOARDS:

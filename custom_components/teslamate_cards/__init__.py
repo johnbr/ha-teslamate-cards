@@ -16,10 +16,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .config_flow import dsn_from_entry
 from .const import DATA_DB, DOMAIN
 from .db import DatabaseError, TeslaMateDB
+from .frontend import async_register_frontend
 from .websocket import async_register_commands
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,6 +49,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {DATA_DB: db}
     async_register_commands(hass)
+
+    integration = await async_get_integration(hass, DOMAIN)
+    await async_register_frontend(hass, str(integration.version))
     return True
 
 

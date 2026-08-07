@@ -22,3 +22,24 @@ jobs:
         run: ruff check .
       - name: Run tests
         run: pytest tests/ -v
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      # Node 22 strips TypeScript natively, so the pure helpers are tested
+      # from source with no build step.
+      - name: Run card tests
+        run: npm run test:js
+      - name: Verify the committed bundle matches the sources
+        run: |
+          cp custom_components/teslamate_cards/frontend/teslamate-cards.js /tmp/committed.js
+          npm run build
+          diff -q /tmp/committed.js custom_components/teslamate_cards/frontend/teslamate-cards.js \
+            || { echo "::error::Committed bundle is stale -- run 'npm run build' and commit the result"; exit 1; }

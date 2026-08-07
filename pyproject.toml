@@ -30,6 +30,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["F401", "F403", "B011"]
+# The query modules hold TeslaMate's Grafana SQL verbatim so it can be diffed
+# against reference/grafana/*.sql. Upstream has trailing whitespace; reflowing
+# it would destroy that property for no benefit.
+"custom_components/*/queries/*.py" = ["W291", "W293"]
 
 [tool.ruff.format]
 quote-style = "double"

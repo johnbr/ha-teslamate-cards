@@ -22,7 +22,7 @@ venv/
 
 # JS toolchain
 node_modules/
-package-lock.json
 
-# Built card bundle -- produced by `npm run build`, published in releases
-custom_components/teslamate_cards/frontend/
+# NOTE: the built bundle at custom_components/teslamate_cards/frontend/ is
+# deliberately COMMITTED -- HACS installs straight from the repository, so a
+# gitignored bundle means a HACS install ships no cards at all.

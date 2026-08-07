@@ -3,9 +3,8 @@
 Native Lovelace cards that bring [TeslaMate](https://github.com/teslamate-org/teslamate)'s Grafana
 dashboards into Home Assistant — no iframe, no Grafana login, no separate URL.
 
-> **Status: data layer (M1).** The integration connects to TeslaMate's database and serves query
-> results over the websocket API. No cards exist yet — the first lands in M2. See
-> [Milestones](#milestones).
+> **Status: first card (M2).** The Vampire Drain card works end to end. The other five land in
+> M3–M5. See [Milestones](#milestones).
 
 ## Why this exists
 
@@ -59,11 +58,28 @@ omission is recorded in the milestone notes.
 
 ## Installation
 
-Not yet installable — the integration does nothing at this stage. Once released:
-
 1. Add this repository to HACS as a custom repository (category: Integration), install, restart.
 2. Add the **TeslaMate Cards** integration and give it your TeslaMate database connection.
-3. Add cards to a dashboard. The card bundle registers its own Lovelace resource.
+3. Add a card. The bundle registers its own Lovelace resource, so nothing else is needed:
+
+```yaml
+type: custom:teslamate-vampire-drain-card
+car_id: 1
+length_unit: mi
+preferred_range: rated
+days: 90
+min_duration_hours: 6
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `car_id` | `1` | Which car, when TeslaMate logs more than one |
+| `length_unit` | `km` | `km` or `mi` |
+| `preferred_range` | `rated` | `rated` or `ideal` |
+| `days` | `90` | Look-back window |
+| `min_duration_hours` | `6` | Ignore standby periods shorter than this |
+| `page_size` | `25` | Rows per page |
+| `title` | card name | Override the header |
 
 ### Recommended: a read-only database role
 
@@ -83,7 +99,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO teslamate_ro
 |---|---|
 | **M0** | Repository, tooling, CI, and the extracted Grafana SQL — **done** |
 | **M1** | Database pool, Grafana-macro translation layer, config flow, websocket API — **done** |
-| **M2** | Vampire Drain card — one table, proving the whole path end to end |
+| **M2** | Vampire Drain card — one table, proving the whole path end to end — **done** |
 | **M3** | Drives and Charges cards, plus the shared table/pagination component |
 | **M4** | Battery Health and Charging Stats cards, plus the uPlot chart wrappers |
 | **M5** | Trip card |

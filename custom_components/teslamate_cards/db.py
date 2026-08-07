@@ -11,7 +11,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 import asyncpg
 
@@ -103,7 +106,7 @@ class TeslaMateDB:
                 _LOGGER.debug("Query %s failed: %s\nSQL: %s", query_id, err, sql)
                 raise DatabaseError(f"Query {query_id} failed: {err}") from err
 
-            rows = [dict(record) for record in records]
+            rows = [{k: _jsonable(v) for k, v in record.items()} for record in records]
             self._cache[key] = (time.monotonic(), rows)
 
         return rows
@@ -112,3 +115,28 @@ class TeslaMateDB:
 def _hashable(value: Any) -> Any:
     """Bind parameters include lists (geofence ids), which cannot key a dict."""
     return tuple(value) if isinstance(value, list) else value
+
+
+def _jsonable(value: Any) -> Any:
+    """Coerce PostgreSQL types Home Assistant's JSON encoder cannot serialise.
+
+    Any `::numeric` expression -- and TeslaMate's own ``convert_km`` /
+    ``convert_celsius`` helpers all return numeric -- comes back from asyncpg as
+    ``decimal.Decimal``, which HA's encoder rejects outright: the websocket
+    response fails, not the query, so the card sees a bare connection error with
+    nothing useful in it.
+
+    Timestamps are emitted as ISO 8601 with no zone, matching the columns they
+    come from (TeslaMate stores naive UTC). The card appends the ``Z``.
+    """
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, datetime | date):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, list):
+        return [_jsonable(item) for item in value]
+    return value

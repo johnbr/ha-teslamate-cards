@@ -18,6 +18,10 @@ CARD_FILENAME: Final = "teslamate-cards.js"
 # TeslaMate's own defaults. Home Assistant reaches a native PostgreSQL on the
 # same host over loopback, which also sidesteps the DHCP-bind boot race that
 # affects containers binding a LAN address.
+# Home Assistant has no CONF_DATABASE in homeassistant.const (host/port/username/
+# password all exist, this one does not), so it is defined here.
+CONF_DATABASE: Final = "database"
+
 DEFAULT_HOST: Final = "127.0.0.1"
 DEFAULT_PORT: Final = 5432
 DEFAULT_DATABASE: Final = "teslamate"
