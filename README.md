@@ -3,8 +3,9 @@
 Native Lovelace cards that bring [TeslaMate](https://github.com/teslamate-org/teslamate)'s Grafana
 dashboards into Home Assistant — no iframe, no Grafana login, no separate URL.
 
-> **Status: scaffold (v0.1.0).** The repository, tooling and reference material are in place. No
-> cards work yet. See [Milestones](#milestones).
+> **Status: data layer (M1).** The integration connects to TeslaMate's database and serves query
+> results over the websocket API. No cards exist yet — the first lands in M2. See
+> [Milestones](#milestones).
 
 ## Why this exists
 
@@ -81,7 +82,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO teslamate_ro
 | | Scope |
 |---|---|
 | **M0** | Repository, tooling, CI, and the extracted Grafana SQL — **done** |
-| **M1** | Database pool, Grafana-macro translation layer, config flow, websocket API |
+| **M1** | Database pool, Grafana-macro translation layer, config flow, websocket API — **done** |
 | **M2** | Vampire Drain card — one table, proving the whole path end to end |
 | **M3** | Drives and Charges cards, plus the shared table/pagination component |
 | **M4** | Battery Health and Charging Stats cards, plus the uPlot chart wrappers |
