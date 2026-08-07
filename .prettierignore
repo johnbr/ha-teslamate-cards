@@ -1,0 +1,10 @@
+# Files prettier should not reformat.
+# reference/ holds SQL and dashboard JSON copied verbatim from TeslaMate --
+# reformatting it would destroy the diff against upstream.
+reference/
+custom_components/teslamate_cards/translations/
+custom_components/teslamate_cards/frontend/
+*.lock
+.git/
+__pycache__/
+node_modules/

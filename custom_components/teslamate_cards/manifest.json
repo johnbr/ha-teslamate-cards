@@ -1,0 +1,13 @@
+{
+  "domain": "teslamate_cards",
+  "name": "TeslaMate Cards",
+  "codeowners": ["@johnbr"],
+  "dependencies": ["http", "websocket_api", "lovelace", "frontend"],
+  "documentation": "https://github.com/johnbr/ha-teslamate-cards",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/johnbr/ha-teslamate-cards/issues",
+  "loggers": ["asyncpg"],
+  "requirements": ["asyncpg==0.31.0"],
+  "version": "0.1.0"
+}

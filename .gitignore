@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.rollup.cache/
+*.tsbuildinfo
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Local working context, not in-repo
+CLAUDE.md
+PLAN.md
+
+# Local virtualenvs
+.venv/
+venv/
+
+# JS toolchain
+node_modules/
+package-lock.json
+
+# Built card bundle -- produced by `npm run build`, published in releases
+custom_components/teslamate_cards/frontend/
