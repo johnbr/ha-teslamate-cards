@@ -1,0 +1,114 @@
+"""Connection pool and query execution against TeslaMate's PostgreSQL.
+
+Deliberately small and on-demand. A query runs when a card is rendered and asks
+for one; nothing here polls, and there is no coordinator. TeslaMate commonly
+shares a cluster with Home Assistant's own recorder, so this owns a 3-connection
+pool of its own and never borrows the recorder's.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from typing import Any
+
+import asyncpg
+
+from .const import (
+    APPLICATION_NAME,
+    CONNECT_TIMEOUT,
+    POOL_MAX_SIZE,
+    POOL_MIN_SIZE,
+    QUERY_CACHE_TTL,
+    STATEMENT_TIMEOUT_MS,
+)
+from .macros import QueryContext, translate
+from .queries import QUERIES, UnknownQuery
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class DatabaseError(Exception):
+    """Connection or query failure, already safe to show a user."""
+
+
+class TeslaMateDB:
+    """A pool plus a short-lived result cache."""
+
+    def __init__(self, dsn: dict[str, Any]) -> None:
+        self._dsn = dsn
+        self._pool: asyncpg.Pool | None = None
+        self._cache: dict[tuple, tuple[float, list[dict[str, Any]]]] = {}
+        self._lock = asyncio.Lock()
+
+    async def async_connect(self) -> None:
+        if self._pool is not None:
+            return
+        try:
+            self._pool = await asyncpg.create_pool(
+                min_size=POOL_MIN_SIZE,
+                max_size=POOL_MAX_SIZE,
+                timeout=CONNECT_TIMEOUT,
+                command_timeout=STATEMENT_TIMEOUT_MS / 1000,
+                server_settings={
+                    # A runaway query must not pin a connection on a shared cluster.
+                    "statement_timeout": str(STATEMENT_TIMEOUT_MS),
+                    # TeslaMate's own pool, Grafana and this one all land in the
+                    # same pg_stat_activity. Without a name our connections and
+                    # queries are unattributable on a shared cluster -- and this
+                    # cluster is also monitored, so an unlabelled slow query is a
+                    # question nobody can answer.
+                    "application_name": APPLICATION_NAME,
+                },
+                **self._dsn,
+            )
+        except (OSError, asyncpg.PostgresError) as err:
+            raise DatabaseError(f"Cannot connect to TeslaMate database: {err}") from err
+
+    async def async_close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
+        self._cache.clear()
+
+    async def async_cars(self) -> list[dict[str, Any]]:
+        """Cars TeslaMate knows about -- used by config flow and card editors."""
+        return await self.async_query("cars", None)
+
+    async def async_query(self, query_id: str, ctx: QueryContext | None) -> list[dict[str, Any]]:
+        """Run a *registered* query. Cards send an id, never SQL."""
+        try:
+            template = QUERIES[query_id]
+        except KeyError as err:
+            raise UnknownQuery(f"Unknown query id: {query_id}") from err
+
+        sql, params = (template.sql, []) if ctx is None else translate(template.sql, ctx)
+
+        key = (query_id, tuple(_hashable(p) for p in params))
+        if (hit := self._cache.get(key)) and time.monotonic() - hit[0] < QUERY_CACHE_TTL:
+            return hit[1]
+
+        if self._pool is None:
+            raise DatabaseError("Database pool is not connected")
+
+        # One flight per distinct query: several cards, browsers and the wall
+        # tablet routinely ask for the same figures at the same moment.
+        async with self._lock:
+            if (hit := self._cache.get(key)) and time.monotonic() - hit[0] < QUERY_CACHE_TTL:
+                return hit[1]
+            try:
+                records = await self._pool.fetch(sql, *params)
+            except asyncpg.PostgresError as err:
+                _LOGGER.debug("Query %s failed: %s\nSQL: %s", query_id, err, sql)
+                raise DatabaseError(f"Query {query_id} failed: {err}") from err
+
+            rows = [dict(record) for record in records]
+            self._cache[key] = (time.monotonic(), rows)
+
+        return rows
+
+
+def _hashable(value: Any) -> Any:
+    """Bind parameters include lists (geofence ids), which cannot key a dict."""
+    return tuple(value) if isinstance(value, list) else value

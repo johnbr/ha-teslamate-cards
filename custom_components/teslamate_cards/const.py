@@ -23,6 +23,9 @@ DEFAULT_PORT: Final = 5432
 DEFAULT_DATABASE: Final = "teslamate"
 DEFAULT_USER: Final = "teslamate"
 
+# Identifies our connections in pg_stat_activity on a shared cluster.
+APPLICATION_NAME: Final = "ha_teslamate_cards"
+
 # Deliberately small. These queries are on-demand only (one websocket request
 # per rendered card), never polled, so a large pool buys nothing and the cluster
 # is shared with Home Assistant's own recorder.
@@ -65,7 +68,6 @@ PREFERRED_RANGES: Final = frozenset({"ideal", "rated"})
 GEOFENCE_ALL: Final = -1
 
 # --- hass.data[DOMAIN] keys -------------------------------------------------
-DATA_POOL: Final = "pool"
-DATA_CACHE: Final = "cache"
+DATA_DB: Final = "db"
 DATA_WS_REGISTERED: Final = "ws_registered"
 DATA_STATIC_REGISTERED: Final = "static_registered"

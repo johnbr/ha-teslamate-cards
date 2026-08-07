@@ -1,15 +1,17 @@
-"""Import the integration without Home Assistant installed.
+"""Import the integration's pure modules without Home Assistant installed.
 
-CI installs pytest and ruff, nothing else. ``const.py`` is deliberately pure --
-no Home Assistant imports, no I/O -- so its allowlists can be unit-tested
-directly, but it lives inside a package whose ``__init__`` imports Home
-Assistant, and Python runs that ``__init__`` before any submodule.
+CI installs pytest and ruff, nothing else. ``const.py`` and ``macros.py`` are
+deliberately pure -- no Home Assistant imports, no I/O, no asyncpg -- so they can
+be unit-tested directly. But they live in a package whose ``__init__`` imports
+all three, and Python runs that ``__init__`` before any submodule.
 
-So the minimum surface ``__init__.py`` touches at import time is stubbed into
-``sys.modules`` first. This is sufficient only for importing pure helpers;
-anything exercising the database pool, websocket or config-flow machinery needs
-a real Home Assistant plus ``pytest-homeassistant-custom-component``, and is out
-of scope here.
+Rather than stub Home Assistant (a surface that grows with every milestone), the
+package is registered in ``sys.modules`` as a bare module object with its
+``__path__`` pointed at the real directory. Submodule imports then resolve
+normally while ``__init__.py`` is never executed.
+
+Anything touching the pool, config flow or websocket needs a real Home Assistant
+plus ``pytest-homeassistant-custom-component``, and is out of scope here.
 """
 
 from __future__ import annotations
@@ -19,40 +21,9 @@ from pathlib import Path
 from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+PACKAGE_DIR = REPO_ROOT / "custom_components" / "teslamate_cards"
 
-
-def _module(name: str, **attrs: object) -> ModuleType:
-    """Create a stub module, wiring it to its parent package."""
-    mod = ModuleType(name)
-    for key, value in attrs.items():
-        setattr(mod, key, value)
-    sys.modules[name] = mod
-    if "." in name:
-        parent_name, _, child = name.rpartition(".")
-        parent = sys.modules.get(parent_name)
-        if parent is not None:
-            setattr(parent, child, mod)
-    return mod
-
-
-def _install_homeassistant_stubs() -> None:
-    if "homeassistant" in sys.modules:
-        return
-
-    _module("homeassistant")
-    _module("homeassistant.core", HomeAssistant=type("HomeAssistant", (), {}), callback=lambda f: f)
-    _module("homeassistant.helpers")
-    # ``cv.empty_config_schema`` is CALLED at module scope in __init__.py, so
-    # the stub has to be callable and return something.
-    _module(
-        "homeassistant.helpers.config_validation",
-        empty_config_schema=lambda domain: {},
-    )
-    _module("homeassistant.helpers.typing", ConfigType=dict)
-
-
-_install_homeassistant_stubs()
-
-# ``custom_components`` on the path so the integration imports as a real package
-# and its relative imports (``from .const import ...``) resolve.
-sys.path.insert(0, str(REPO_ROOT / "custom_components"))
+if "teslamate_cards" not in sys.modules:
+    package = ModuleType("teslamate_cards")
+    package.__path__ = [str(PACKAGE_DIR)]  # type: ignore[attr-defined]
+    sys.modules["teslamate_cards"] = package

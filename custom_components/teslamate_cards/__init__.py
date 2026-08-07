@@ -1,33 +1,57 @@
 """The TeslaMate Cards integration.
 
-Scaffold release. This integration reads TeslaMate's PostgreSQL database
-directly and serves the results to a bundled set of Lovelace cards over the
-Home Assistant websocket API -- there are no entities, and nothing is polled.
+Reads TeslaMate's PostgreSQL database directly and serves the results to a
+bundled set of Lovelace cards over the Home Assistant websocket API. There are
+no entities and nothing is polled -- a query runs when a card asks for one.
 
-Nothing is wired up yet: the database pool, config flow, macro translation
-layer, websocket commands and the card bundle land in later milestones. See
-README.md for the milestone breakdown.
+M1: data layer only. The card bundle lands with the first card (M2).
 """
 
 from __future__ import annotations
 
 import logging
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .config_flow import dsn_from_entry
+from .const import DATA_DB, DOMAIN
+from .db import DatabaseError, TeslaMateDB
+from .websocket import async_register_commands
 
 _LOGGER = logging.getLogger(__name__)
 
-# There is no YAML configuration for this integration and -- until the config
-# flow lands in M1 -- no config entries either.
-CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+# Configured through the UI only.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the TeslaMate Cards integration."""
-    _LOGGER.debug("TeslaMate Cards scaffold loaded; no data sources configured yet")
     hass.data.setdefault(DOMAIN, {})
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    db = TeslaMateDB(dsn_from_entry(dict(entry.data)))
+    try:
+        await db.async_connect()
+        # Prove the credentials actually reach TeslaMate's schema, not just
+        # that a socket opened.
+        await db.async_cars()
+    except DatabaseError as err:
+        await db.async_close()
+        # Transient failures (database still starting) get retried by HA.
+        raise ConfigEntryNotReady(str(err)) from err
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {DATA_DB: db}
+    async_register_commands(hass)
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    stored = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    if stored and (db := stored.get(DATA_DB)):
+        await db.async_close()
     return True
