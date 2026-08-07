@@ -241,9 +241,17 @@ def _substitute_filters(sql: str, ctx: QueryContext, binder: _Binder) -> str:
 def _substitute_scalars(sql: str, ctx: QueryContext, binder: _Binder) -> str:
     """`$car_id` and the per-dashboard tunables.
 
-    A quoted occurrence (`'$cost'`, `'$aux'`) binds as text, because upstream
-    casts it explicitly -- `NULLIF('$cost', '')::NUMERIC`, `'$aux'::json`. An
-    unquoted one binds as-is.
+    Quoting in the template says only that the surrounding quotes must be
+    consumed -- it does **not** mean the value is text. Grafana interpolates a
+    quoted variable as an SQL literal, which PostgreSQL leaves `unknown` and
+    coerces from context, so upstream can write both
+    ``duration_min >= '$min_duration_min'`` (against a smallint) and
+    ``NULLIF('$cost', '')::NUMERIC`` (against text) with the same syntax.
+
+    A bind parameter has no such freedom: binding the smallint comparison as
+    text fails with *"'str' object cannot be interpreted as an integer"* at
+    execution, though the statement prepares cleanly. So the caller's own Python
+    type decides -- pass an int for a numeric tunable, a str for a text filter.
     """
     values: dict[str, Any] = {"car_id": ctx.car_id, **ctx.extras}
 
@@ -251,7 +259,7 @@ def _substitute_scalars(sql: str, ctx: QueryContext, binder: _Binder) -> str:
         value = values[name]
         quoted = f"'${name}'"
         if quoted in sql:
-            sql = sql.replace(quoted, binder.bind(name, "" if value is None else str(value)))
+            sql = sql.replace(quoted, binder.bind(name, value))
         sql = re.sub(rf"\${name}(?![A-Za-z0-9_])", lambda _m, v=value, n=name: binder.bind(n, v), sql)
     return sql
 

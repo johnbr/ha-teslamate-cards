@@ -3,8 +3,8 @@
 Native Lovelace cards that bring [TeslaMate](https://github.com/teslamate-org/teslamate)'s Grafana
 dashboards into Home Assistant — no iframe, no Grafana login, no separate URL.
 
-> **Status: first card (M2).** The Vampire Drain card works end to end. The other five land in
-> M3–M5. See [Milestones](#milestones).
+> **Status: three cards (M3).** Drives, Charges and Vampire Drain work end to end. Battery Health,
+> Charging Stats and Trip land in M4–M5. See [Milestones](#milestones).
 
 ## Why this exists
 
@@ -63,23 +63,40 @@ omission is recorded in the milestone notes.
 3. Add a card. The bundle registers its own Lovelace resource, so nothing else is needed:
 
 ```yaml
-type: custom:teslamate-vampire-drain-card
+type: custom:teslamate-drives-card
 car_id: 1
 length_unit: mi
+temp_unit: F
 preferred_range: rated
 days: 90
-min_duration_hours: 6
 ```
+
+Options shared by every card:
 
 | Option | Default | Meaning |
 |---|---|---|
 | `car_id` | `1` | Which car, when TeslaMate logs more than one |
 | `length_unit` | `km` | `km` or `mi` |
+| `temp_unit` | `C` | `C` or `F` |
 | `preferred_range` | `rated` | `rated` or `ideal` |
 | `days` | `90` | Look-back window |
-| `min_duration_hours` | `6` | Ignore standby periods shorter than this |
 | `page_size` | `25` | Rows per page |
 | `title` | card name | Override the header |
+
+Per-card options:
+
+| Card | Option | Default | Meaning |
+|---|---|---|---|
+| Drives | `min_distance` | `0` | Hide drives shorter than this |
+| Drives | `min_speed` | `0` | Hide drives below this average speed |
+| Drives | `efficiency_mode` | `slope-adjusted` | Or `by distance` |
+| Charges | `charge_type` | *(both)* | `AC` or `DC` |
+| Charges | `min_duration_minutes` | `0` | Hide shorter sessions |
+| Vampire Drain | `min_duration_hours` | `6` | Ignore shorter standby periods |
+
+To put several cards behind tabs on one dashboard, wrap them in
+[`tabbed-card`](https://github.com/kinghat/tabbed-card) — one card per tab, only the selected one
+renders.
 
 ### Recommended: a read-only database role
 
@@ -100,7 +117,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO teslamate_ro
 | **M0** | Repository, tooling, CI, and the extracted Grafana SQL — **done** |
 | **M1** | Database pool, Grafana-macro translation layer, config flow, websocket API — **done** |
 | **M2** | Vampire Drain card — one table, proving the whole path end to end — **done** |
-| **M3** | Drives and Charges cards, plus the shared table/pagination component |
+| **M3** | Drives and Charges cards, plus the shared table/pagination component — **done** |
 | **M4** | Battery Health and Charging Stats cards, plus the uPlot chart wrappers |
 | **M5** | Trip card |
 | **M6** | Card editors, documentation, screenshots, HACS default-store submission |

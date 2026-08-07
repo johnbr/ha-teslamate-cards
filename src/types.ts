@@ -36,6 +36,24 @@ export interface VampireDrainCardConfig extends BaseCardConfig {
   page_size?: number;
 }
 
+export interface DrivesCardConfig extends BaseCardConfig {
+  /** Hide drives shorter than this, in `length_unit`. */
+  min_distance?: number;
+  /** Hide drives slower than this average speed. */
+  min_speed?: number;
+  /** `slope-adjusted` (upstream default) or `by distance`. */
+  efficiency_mode?: "slope-adjusted" | "by distance";
+  page_size?: number;
+}
+
+export interface ChargesCardConfig extends BaseCardConfig {
+  /** Hide sessions shorter than this. */
+  min_duration_minutes?: number;
+  /** `AC`, `DC`, or empty for both. */
+  charge_type?: "AC" | "DC" | "";
+  page_size?: number;
+}
+
 /** Lovelace hands cards an editor-provided config; narrow it defensively. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

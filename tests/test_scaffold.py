@@ -117,7 +117,7 @@ def test_card_version_banner_matches_manifest() -> None:
 def test_every_registered_card_is_in_the_bundle() -> None:
     """A card registered in Python but absent from the bundle renders nothing."""
     bundle = (COMPONENT_DIR / "frontend" / "teslamate-cards.js").read_text(encoding="utf-8")
-    for element in ("teslamate-vampire-drain-card",):
+    for element in ("teslamate-vampire-drain-card", "teslamate-drives-card", "teslamate-charges-card"):
         assert element in bundle, f"{element} missing from the built bundle"
 
 

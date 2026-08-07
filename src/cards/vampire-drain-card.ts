@@ -1,13 +1,13 @@
 import { type TemplateResult, html } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement } from "lit/decorators.js";
 import { TeslaMateBaseCard } from "../base-card";
-import { dateTime, duration, fixed, percent, percentUnit, thresholdColor, toNumber } from "../format";
-import type { Row, VampireDrainCardConfig } from "../types";
+import { dateTime, duration, fixed, percent, percentUnit, sumOf, thresholdColor, toNumber } from "../format";
+import { type Column, renderTable } from "../table";
+import type { VampireDrainCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
 
 const DEFAULT_MIN_HOURS = 6; // upstream's dashboard default
 const DEFAULT_DAYS = 90; // upstream's dashboard time range
-const DEFAULT_PAGE_SIZE = 25;
 
 // Grafana threshold steps, ascending. See the panel's fieldConfig overrides.
 const STANDBY_STEPS: Array<[number, string]> = [
@@ -22,8 +22,6 @@ const PERIOD_STEPS: Array<[number, string]> = [
 
 @customElement("teslamate-vampire-drain-card")
 export class VampireDrainCard extends TeslaMateBaseCard<VampireDrainCardConfig> {
-  @state() private _page = 0;
-
   protected queryId(): string {
     return "vampire_drain";
   }
@@ -40,28 +38,47 @@ export class VampireDrainCard extends TeslaMateBaseCard<VampireDrainCardConfig> 
     return "Vampire Drain";
   }
 
-  setConfig(config: VampireDrainCardConfig): void {
-    super.setConfig(config);
-    this._page = 0;
+  protected pageSize(): number {
+    return this._config.page_size ?? 25;
   }
 
-  getCardSize(): number {
-    return 8;
-  }
+  private _columns(): Column[] {
+    const unit = this._config.length_unit ?? "km";
+    const language = this._hass?.locale?.language;
 
-  private get _unit(): "km" | "mi" {
-    return this._config.length_unit ?? "km";
-  }
-
-  /** `range_diff_km` / `range_diff_mi` — the column name carries the unit. */
-  private _rangeKey(prefix: string): string {
-    return `${prefix}_${this._unit}`;
-  }
-
-  private _totals(): { periods: number; energy: number } {
-    let energy = 0;
-    for (const row of this._rows) energy += toNumber(row.consumption) ?? 0;
-    return { periods: this._rows.length, energy };
+    return [
+      { label: "Start", align: "left", render: (r) => dateTime(r.start_date, language) },
+      { label: "End", align: "left", render: (r) => dateTime(r.end_date, language) },
+      {
+        label: "Period",
+        render: (r) => duration(r.duration),
+        color: (r) => thresholdColor(r.duration, PERIOD_STEPS, "inherit"),
+      },
+      {
+        label: "Standby",
+        render: (r) => percentUnit(r.standby),
+        color: (r) => thresholdColor(r.standby, STANDBY_STEPS, "inherit"),
+      },
+      { label: "SoC", render: (r) => percent(r.soc_diff), optional: true },
+      {
+        // Upstream blanks the range columns in cold weather: with part of the
+        // pack unavailable, a range delta does not mean what it appears to.
+        // The ❄ marks those rows so an empty cell reads as "not comparable"
+        // rather than "no data".
+        label: "",
+        align: "center",
+        render: (r) => (toNumber(r.has_reduced_range) === 1 ? "❄" : ""),
+        color: () => "var(--info-color, #3d71d7)",
+        title: (r) =>
+          toNumber(r.has_reduced_range) === 1
+            ? "Reduced range: part of the pack was unavailable, so range loss cannot be estimated"
+            : undefined,
+      },
+      { label: "Range loss", render: (r) => fixed(r[this.unitKey("range_diff")], 2, ` ${unit}`) },
+      { label: "Energy", render: (r) => fixed(r.consumption, 2, " kWh"), optional: true },
+      { label: "Ø Power", render: (r) => fixed(r.avg_power, 0, " W"), optional: true },
+      { label: "Ø Loss / h", render: (r) => fixed(r[this.unitKey("range_lost_per_hour")], 2, ` ${unit}`) },
+    ];
   }
 
   protected renderContent(): TemplateResult {
@@ -77,76 +94,14 @@ export class VampireDrainCard extends TeslaMateBaseCard<VampireDrainCardConfig> 
       `;
     }
 
-    const pageSize = this._config.page_size ?? DEFAULT_PAGE_SIZE;
-    const pages = Math.max(1, Math.ceil(this._rows.length / pageSize));
-    const page = Math.min(this._page, pages - 1);
-    const visible = this._rows.slice(page * pageSize, page * pageSize + pageSize);
-    const { periods, energy } = this._totals();
-    const unitLabel = this._unit;
+    const { visible, page, pages } = this.paginate(this._rows);
+    const energy = sumOf(this._rows, "consumption");
 
     return html`
       <ha-card>
-        ${this.renderHeader(`${periods} periods · ${energy.toFixed(1)} kWh drained`)}
-        <div class="scroller">
-          <table>
-            <thead>
-              <tr>
-                <th class="left">Start</th>
-                <th class="left">End</th>
-                <th>Period</th>
-                <th>Standby</th>
-                <th class="optional">SoC</th>
-                <th class="center"></th>
-                <th>Range loss</th>
-                <th class="optional">Energy</th>
-                <th class="optional">Ø Power</th>
-                <th>Ø Loss / h</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${visible.map((row) => this._renderRow(row, unitLabel))}
-            </tbody>
-          </table>
-        </div>
-        ${pages > 1 ? this._renderPager(page, pages) : null}
+        ${this.renderHeader(`${this._rows.length} periods · ${energy.toFixed(1)} kWh drained`)}
+        ${renderTable(this._columns(), visible)} ${this.renderPager(page, pages)}
       </ha-card>
-    `;
-  }
-
-  private _renderRow(row: Row, unitLabel: string): TemplateResult {
-    const language = this._hass?.locale?.language;
-    // Upstream blanks the range columns in cold weather: with part of the pack
-    // unavailable, a range delta does not mean what it appears to mean. The ❄
-    // marks those rows so an empty cell reads as "not comparable", not "no data".
-    const cold = toNumber(row.has_reduced_range) === 1;
-
-    return html`
-      <tr>
-        <td class="left">${dateTime(row.start_date, language)}</td>
-        <td class="left">${dateTime(row.end_date, language)}</td>
-        <td style="color: ${thresholdColor(row.duration, PERIOD_STEPS, "inherit")}">${duration(row.duration)}</td>
-        <td style="color: ${thresholdColor(row.standby, STANDBY_STEPS, "inherit")}">${percentUnit(row.standby)}</td>
-        <td class="optional">${percent(row.soc_diff)}</td>
-        <td class="center cold" title=${cold ? "Reduced range: part of the pack was unavailable, so range loss cannot be estimated" : ""}>
-          ${cold ? "❄" : ""}
-        </td>
-        <td>${fixed(row[this._rangeKey("range_diff")], 2, ` ${unitLabel}`)}</td>
-        <td class="optional">${fixed(row.consumption, 2, " kWh")}</td>
-        <td class="optional">${fixed(row.avg_power, 0, " W")}</td>
-        <td>${fixed(row[this._rangeKey("range_lost_per_hour")], 2, ` ${unitLabel}`)}</td>
-      </tr>
-    `;
-  }
-
-  private _renderPager(page: number, pages: number): TemplateResult {
-    return html`
-      <div class="footer">
-        <span>Page ${page + 1} of ${pages}</span>
-        <span class="pager">
-          <button ?disabled=${page === 0} @click=${() => (this._page = page - 1)}>Previous</button>
-          <button ?disabled=${page >= pages - 1} @click=${() => (this._page = page + 1)}>Next</button>
-        </span>
-      </div>
     `;
   }
 }

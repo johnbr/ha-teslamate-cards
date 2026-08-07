@@ -19,21 +19,29 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
   static styles = cardStyles;
 
   @state() protected _rows: Row[] = [];
+  /** Results of `secondaryQueryIds()`, keyed by query id. */
+  @state() protected _extra: Record<string, Row[]> = {};
   @state() protected _loading = true;
   @state() protected _error: string | null = null;
+  @state() protected _page = 0;
 
   protected _config!: C;
   protected _hass?: HomeAssistant;
   private _timer?: number;
   private _requested = false;
 
-  /** The registered query id this card renders. */
+  /** The registered query id this card's main table renders. */
   protected abstract queryId(): string;
 
   /** Card-specific query parameters. */
   protected abstract queryOptions(): QueryOptions;
 
   protected abstract renderContent(): TemplateResult;
+
+  /** Extra queries fetched alongside the main one (e.g. "incomplete" tables). */
+  protected secondaryQueryIds(): string[] {
+    return [];
+  }
 
   set hass(hass: HomeAssistant) {
     this._hass = hass;
@@ -46,6 +54,7 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
   setConfig(config: C): void {
     if (!config) throw new Error("Invalid configuration");
     this._config = config;
+    this._page = 0;
     this._requested = false;
     if (this._hass) {
       this._requested = true;
@@ -68,15 +77,34 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
 
   async refresh(): Promise<void> {
     if (!this._hass || !this._config) return;
+    const hass = this._hass;
+    const options = this.queryOptions();
     try {
-      const rows = await runQuery(this._hass, this.queryId(), this.queryOptions());
-      this._rows = rows;
+      const ids = this.secondaryQueryIds();
+      const [main, ...rest] = await Promise.all([
+        runQuery(hass, this.queryId(), options),
+        ...ids.map((id) => runQuery(hass, id, options)),
+      ]);
+      this._rows = main;
+      this._extra = Object.fromEntries(ids.map((id, i) => [id, rest[i] ?? []]));
       this._error = null;
     } catch (err) {
       this._error = errorMessage(err);
     } finally {
       this._loading = false;
     }
+  }
+
+  /** Rows for the current page, plus the paging metadata the footer needs. */
+  protected paginate(rows: Row[]): { visible: Row[]; page: number; pages: number } {
+    const size = this.pageSize();
+    const pages = Math.max(1, Math.ceil(rows.length / size));
+    const page = Math.min(this._page, pages - 1);
+    return { visible: rows.slice(page * size, page * size + size), page, pages };
+  }
+
+  protected pageSize(): number {
+    return 25;
   }
 
   protected renderHeader(subtitle?: string): TemplateResult {
@@ -88,8 +116,30 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
     `;
   }
 
+  protected renderPager(page: number, pages: number): TemplateResult | null {
+    if (pages <= 1) return null;
+    return html`
+      <div class="footer">
+        <span>Page ${page + 1} of ${pages}</span>
+        <span class="pager">
+          <button ?disabled=${page === 0} @click=${() => (this._page = page - 1)}>Previous</button>
+          <button ?disabled=${page >= pages - 1} @click=${() => (this._page = page + 1)}>Next</button>
+        </span>
+      </div>
+    `;
+  }
+
   protected defaultTitle(): string {
     return "TeslaMate";
+  }
+
+  /** `distance_mi` / `distance_km` — upstream suffixes columns with the unit. */
+  protected unitKey(prefix: string): string {
+    return `${prefix}_${this._config.length_unit ?? "km"}`;
+  }
+
+  protected tempKey(prefix: string): string {
+    return `${prefix}_${(this._config.temp_unit ?? "C").toLowerCase()}`;
   }
 
   render(): TemplateResult {

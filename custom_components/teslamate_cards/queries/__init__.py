@@ -12,8 +12,11 @@ The SQL is kept as close to upstream's as possible so it can be diffed against
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
+from .charges import CHARGES_SQL, INCOMPLETE_CHARGES_SQL
+from .drives import DRIVES_SQL, INCOMPLETE_DRIVES_SQL
 from .vampire_drain import VAMPIRE_DRAIN_SQL
 
 
@@ -32,6 +35,15 @@ class Query:
     sql: str
     description: str
     needs_context: bool = True
+    #: Per-dashboard tunables, with Grafana's own defaults.
+    #:
+    #: **The Python type here is load-bearing.** Grafana interpolates a quoted
+    #: variable as an SQL literal that PostgreSQL coerces from context, so
+    #: upstream writes both ``duration_min >= '$min_duration_min'`` (smallint)
+    #: and ``'by distance' = '$efficiency'`` (text) the same way. A bind
+    #: parameter cannot do that -- the value's Python type picks the parameter
+    #: type, and getting it wrong fails at execution while preparing cleanly.
+    defaults: dict[str, Any] = field(default_factory=dict)
 
 
 QUERIES: dict[str, Query] = {
@@ -40,8 +52,32 @@ QUERIES: dict[str, Query] = {
         description="Cars TeslaMate is logging; populates the car picker.",
         needs_context=False,
     ),
+    "drives": Query(
+        sql=DRIVES_SQL,
+        description="One row per drive (Drives dashboard).",
+        # min_dist/min_speed are numeric; efficiency is a text choice of
+        # "slope-adjusted" or "by distance".
+        defaults={"min_dist": 0, "min_speed": 0, "efficiency": "slope-adjusted"},
+    ),
+    "incomplete_drives": Query(
+        sql=INCOMPLETE_DRIVES_SQL,
+        description="Drives with no recorded end.",
+    ),
+    "charges": Query(
+        sql=CHARGES_SQL,
+        description="One row per charging process (Charges dashboard).",
+        # cost is a free-text filter ("" = no filter); min_duration_min is
+        # compared against a smallint column despite being quoted upstream.
+        defaults={"cost": "", "min_duration_min": 0},
+    ),
+    "incomplete_charges": Query(
+        sql=INCOMPLETE_CHARGES_SQL,
+        description="Charging processes with no recorded end.",
+    ),
     "vampire_drain": Query(
         sql=VAMPIRE_DRAIN_SQL,
         description="Standby losses between drives and charges (Vampire Drain dashboard).",
+        # Minimum standby length in hours.
+        defaults={"duration": 6},
     ),
 }

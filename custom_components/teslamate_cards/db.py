@@ -12,6 +12,7 @@ import asyncio
 import logging
 import ssl as ssl_module
 import time
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -92,7 +93,13 @@ class TeslaMateDB:
         except KeyError as err:
             raise UnknownQuery(f"Unknown query id: {query_id}") from err
 
-        sql, params = (template.sql, []) if ctx is None else translate(template.sql, ctx)
+        if ctx is None:
+            sql, params = template.sql, []
+        else:
+            # The registry's defaults carry the right Python type for each
+            # tunable; a caller may override the value but rarely all of them.
+            ctx = replace(ctx, extras={**template.defaults, **ctx.extras})
+            sql, params = translate(template.sql, ctx)
 
         key = (query_id, tuple(_hashable(p) for p in params))
         if (hit := self._cache.get(key)) and time.monotonic() - hit[0] < QUERY_CACHE_TTL:

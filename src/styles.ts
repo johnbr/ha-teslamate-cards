@@ -152,4 +152,61 @@ export const cardStyles = css`
   .cold {
     color: var(--info-color, #3d71d7);
   }
+
+  /* Summary stat row — upstream's reducers over the table's own rows. */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 4px 16px 12px;
+  }
+
+  .stat {
+    text-align: center;
+    min-width: 0;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--primary-text-color);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--secondary-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .subheader {
+    padding: 14px 16px 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--secondary-text-color);
+    border-top: 1px solid var(--divider-color);
+    margin-top: 8px;
+  }
+
+  /* Secondary columns: worth having on a desktop, noise on a phone. These
+     tables are already wide enough to need horizontal scrolling. */
+  @media (max-width: 700px) {
+    th.optional,
+    td.optional {
+      display: none;
+    }
+
+    .summary {
+      grid-template-columns: repeat(2, 1fr);
+      row-gap: 10px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+    }
+  }
 `;

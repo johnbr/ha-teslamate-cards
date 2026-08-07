@@ -6,6 +6,8 @@
  * splitting would duplicate more than it saves.
  */
 
+import "./cards/charges-card";
+import "./cards/drives-card";
 import "./cards/vampire-drain-card";
 
 const VERSION = "0.1.0"; // x-release-please-version
@@ -27,13 +29,29 @@ declare global {
 const DOCS = "https://github.com/johnbr/ha-teslamate-cards";
 
 window.customCards = window.customCards ?? [];
-window.customCards.push({
-  type: "teslamate-vampire-drain-card",
-  name: "TeslaMate Vampire Drain",
-  description: "Standby battery losses between drives and charges.",
-  preview: false,
-  documentationURL: DOCS,
-});
+window.customCards.push(
+  {
+    type: "teslamate-drives-card",
+    name: "TeslaMate Drives",
+    description: "Every drive: route, distance, duration and energy.",
+    preview: false,
+    documentationURL: DOCS,
+  },
+  {
+    type: "teslamate-charges-card",
+    name: "TeslaMate Charges",
+    description: "Every charging session: energy, range gained, rate and cost.",
+    preview: false,
+    documentationURL: DOCS,
+  },
+  {
+    type: "teslamate-vampire-drain-card",
+    name: "TeslaMate Vampire Drain",
+    description: "Standby battery losses between drives and charges.",
+    preview: false,
+    documentationURL: DOCS,
+  }
+);
 
 // eslint-disable-next-line no-console
 console.info(

@@ -72,3 +72,29 @@ export function thresholdColor(value: unknown, steps: Array<[number, string]>, f
   }
   return color;
 }
+
+/**
+ * Numeric values of a column across rows, skipping nulls.
+ *
+ * Goes through `toNumber` rather than `Number` because `Number(null)` is **0**,
+ * not NaN — so a plain `Number.isFinite` filter keeps nulls, which is harmless
+ * in a sum and silently wrong in a mean (an in-progress drive has a null
+ * duration; a free Supercharger session has a null cost).
+ */
+function numericValues(rows: Array<Record<string, unknown>>, key: string): number[] {
+  const out: number[] = [];
+  for (const row of rows) {
+    const n = toNumber(row[key]);
+    if (n !== null) out.push(n);
+  }
+  return out;
+}
+
+export function sumOf(rows: Array<Record<string, unknown>>, key: string): number {
+  return numericValues(rows, key).reduce((a, b) => a + b, 0);
+}
+
+export function meanOf(rows: Array<Record<string, unknown>>, key: string): number {
+  const values = numericValues(rows, key);
+  return values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
+}
