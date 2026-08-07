@@ -44,6 +44,10 @@ omission is recorded in the milestone notes.
   server-side; tables are paginated server-side.
 - **Read-only by construction.** The integration only ever issues `SELECT`. Point it at a read-only
   role (see below).
+- **Free Supercharging is handled, not treated as missing data.** Cars with free Supercharging for
+  life record those sessions at zero cost, so cost panels count the energy while charging nothing for
+  it — an accurate blended cost per kWh rather than a broken one. Cost reporting is fully supported
+  either way.
 - **Charts are bundled, not fetched.** [uPlot](https://github.com/leeoniya/uPlot) is compiled into the
   card bundle, so nothing is loaded from a CDN.
 
