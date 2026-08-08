@@ -12,7 +12,7 @@ import "./cards/charging-stats-card";
 import "./cards/drives-card";
 import "./cards/vampire-drain-card";
 
-const VERSION = "0.1.0"; // x-release-please-version
+const VERSION = "0.2.0"; // x-release-please-version
 
 interface CustomCard {
   type: string;
