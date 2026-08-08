@@ -3,6 +3,7 @@ import { customElement, property } from "lit/decorators.js";
 import uPlot from "uplot";
 import uplotCss from "uplot/dist/uPlot.min.css";
 import { type XYSeries, alignSeries } from "./align";
+import { seriesPoints } from "./points";
 
 /**
  * A uPlot canvas as a Lit element.
@@ -270,7 +271,7 @@ export class TeslaMateChart extends LitElement {
             // A scatter draws points only. Returning null from the path builder
             // is uPlot's documented way to suppress the connecting line.
             ...(s.line ? {} : { paths: () => null }),
-            points: { show: true, size: s.line ? 0 : 4, stroke, fill: stroke },
+            points: seriesPoints(s.line === true, stroke),
           } as uPlot.Series;
         }),
       ],
