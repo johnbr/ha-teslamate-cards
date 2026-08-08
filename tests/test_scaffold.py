@@ -10,6 +10,7 @@ silently breaks the card bundle's ``?v=`` cache-buster.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -106,19 +107,58 @@ def test_card_bundle_is_committed() -> None:
     assert bundle.stat().st_size > 1000
 
 
-def test_card_version_banner_matches_manifest() -> None:
-    """The banner is release-please's marker and the cache-buster's twin; if it
-    drifts from the manifest, the released bundle reports the wrong version."""
-    manifest_version = _load(COMPONENT_DIR / "manifest.json")["version"]
+def test_version_is_not_baked_into_the_bundle_source() -> None:
+    """The version must stay out of the sources the bundle is built from.
+
+    It used to be a constant carrying release-please's ``x-release-please-version``
+    marker. That couples the *built bundle* to the version, and release-please
+    cannot run a build: cutting a release rewrote the constant, left the
+    committed bundle stale, and failed the build-diff check. It broke the 0.2.0
+    release exactly that way.
+
+    The banner now reads the version from the module's own URL, which
+    ``frontend.py`` already stamps with ``?v=<manifest version>`` as the
+    cache-buster -- so the URL is the single source of truth and a release
+    touches no file the bundle depends on.
+    """
     source = (REPO_ROOT / "src" / "teslamate-cards.ts").read_text(encoding="utf-8")
-    assert f'"{manifest_version}"; // x-release-please-version' in source
+    assert "x-release-please-version" not in source, "version marker is back in a bundled source file"
+    assert "import.meta.url" in source, "the banner should read its version from the module URL"
+
+    config = _load(REPO_ROOT / "release-please-config.json")
+    extra_files = config["packages"]["."]["extra-files"]
+    bundled_sources = [f for f in extra_files if isinstance(f, str) and f.startswith("src/")]
+    assert not bundled_sources, f"release-please must not rewrite bundled sources: {bundled_sources}"
 
 
-def test_every_registered_card_is_in_the_bundle() -> None:
-    """A card registered in Python but absent from the bundle renders nothing."""
+def _declared_card_elements() -> list[str]:
+    """Every custom element declared under src/cards, read from the sources.
+
+    Derived rather than listed: a hardcoded list silently stops covering the
+    next card someone adds, which is precisely when this check matters.
+    """
+    elements: list[str] = []
+    for path in sorted((REPO_ROOT / "src" / "cards").glob("*.ts")):
+        elements.extend(re.findall(r'@customElement\(\s*["\']([^"\']+)["\']', path.read_text(encoding="utf-8")))
+    return elements
+
+
+def test_every_declared_card_is_in_the_bundle() -> None:
+    """A card whose source exists but is not bundled renders nothing at all --
+    the usual cause is forgetting to import it from the entry point."""
+    declared = _declared_card_elements()
+    assert declared, "no card elements found under src/cards"
     bundle = (COMPONENT_DIR / "frontend" / "teslamate-cards.js").read_text(encoding="utf-8")
-    for element in ("teslamate-vampire-drain-card", "teslamate-drives-card", "teslamate-charges-card"):
-        assert element in bundle, f"{element} missing from the built bundle"
+    missing = [name for name in declared if name not in bundle]
+    assert not missing, f"missing from the built bundle (import them in src/teslamate-cards.ts): {missing}"
+
+
+def test_every_declared_card_is_advertised_to_lovelace() -> None:
+    """`window.customCards` is what the dashboard card picker lists; a card
+    missing from it works only if its type is typed in by hand."""
+    entry = (REPO_ROOT / "src" / "teslamate-cards.ts").read_text(encoding="utf-8")
+    missing = [name for name in _declared_card_elements() if f'"{name}"' not in entry]
+    assert not missing, f"not registered in window.customCards: {missing}"
 
 
 def test_reference_sql_present_for_every_dashboard() -> None:
