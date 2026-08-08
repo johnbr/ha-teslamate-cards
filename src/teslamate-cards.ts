@@ -12,7 +12,19 @@ import "./cards/charging-stats-card";
 import "./cards/drives-card";
 import "./cards/vampire-drain-card";
 
-const VERSION = "0.2.0"; // x-release-please-version
+/**
+ * Read the version from this module's own URL rather than baking it in.
+ *
+ * `frontend.py` registers the Lovelace resource as `...teslamate-cards.js?v=<manifest version>`,
+ * so the running version is already in the URL the browser fetched — and that
+ * query string is the cache-buster, making it the single source of truth.
+ *
+ * Embedding it as a constant instead couples the *bundle* to the version, and
+ * release-please cannot rebuild: it would bump the constant in source, leave the
+ * committed bundle stale, and fail the build-diff check on every release. That
+ * is not hypothetical — it broke the 0.2.0 release.
+ */
+const VERSION = new URL(import.meta.url).searchParams.get("v") ?? "dev";
 
 interface CustomCard {
   type: string;
