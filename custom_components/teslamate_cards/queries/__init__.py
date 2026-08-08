@@ -25,11 +25,12 @@ from .charging_stats import (
     TOP_STATIONS_COST_SQL,
     TOP_STATIONS_ENERGY_SQL,
 )
-from .drives import DRIVES_SQL, INCOMPLETE_DRIVES_SQL
+from .drives import DRIVE_ROUTE_SQL, DRIVES_SQL, INCOMPLETE_DRIVES_SQL
 from .trip import (
     TRIP_BATTERY_SQL,
     TRIP_ELEVATION_SQL,
     TRIP_ENERGY_SQL,
+    TRIP_ROUTE_SQL,
     TRIP_SUMMARY_SQL,
 )
 from .vampire_drain import VAMPIRE_DRAIN_SQL
@@ -59,6 +60,12 @@ class Query:
     #: parameter cannot do that -- the value's Python type picks the parameter
     #: type, and getting it wrong fails at execution while preparing cleanly.
     defaults: dict[str, Any] = field(default_factory=dict)
+    #: A GPS track (``time``/``latitude``/``longitude``) bound for a map rather
+    #: than a chart, so ``db`` reduces it with :func:`simplify.simplify_route`
+    #: before it is cached. Route queries deliberately stay at a fine time
+    #: bucket -- a route is not a function of time, and thinning one on the
+    #: clock cuts the corners first. See ``simplify.py``.
+    is_route: bool = False
 
 
 QUERIES: dict[str, Query] = {
@@ -77,6 +84,14 @@ QUERIES: dict[str, Query] = {
     "incomplete_drives": Query(
         sql=INCOMPLETE_DRIVES_SQL,
         description="Drives with no recorded end.",
+    ),
+    "drive_route": Query(
+        sql=DRIVE_ROUTE_SQL,
+        description="One drive's GPS track, for the map on the Drives card.",
+        # A drives.id (bigint), so an int -- see the note on `defaults`. 0
+        # matches no drive, which is the right answer before a row is picked.
+        defaults={"drive_id": 0},
+        is_route=True,
     ),
     "charges": Query(
         sql=CHARGES_SQL,
@@ -150,5 +165,10 @@ QUERIES: dict[str, Query] = {
     "trip_elevation": Query(
         sql=TRIP_ELEVATION_SQL,
         description="Elevation over time, bucketed to the window.",
+    ),
+    "trip_route": Query(
+        sql=TRIP_ROUTE_SQL,
+        description="The whole window's GPS track, driving and parked (Trip geomap).",
+        is_route=True,
     ),
 }

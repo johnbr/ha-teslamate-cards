@@ -1,14 +1,13 @@
 import { type TemplateResult, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { TeslaMateBaseCard } from "../base-card";
+import { rangeLabel } from "../range";
 import { dateTime, duration, fixed, percent, percentUnit, sumOf, thresholdColor, toNumber } from "../format";
 import { type Column, renderTable } from "../table";
 import type { VampireDrainCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
 
 const DEFAULT_MIN_HOURS = 6; // upstream's dashboard default
-const DEFAULT_DAYS = 90; // upstream's dashboard time range
-
 // Grafana threshold steps, ascending. See the panel's fieldConfig overrides.
 const STANDBY_STEPS: Array<[number, string]> = [
   [0, "#FF7383"],
@@ -29,7 +28,7 @@ export class VampireDrainCard extends TeslaMateBaseCard<VampireDrainCardConfig> 
   protected queryOptions(): QueryOptions {
     return {
       ...this._config,
-      days: this._config.days ?? DEFAULT_DAYS,
+      days: this.days(),
       vars: { duration: this._config.min_duration_hours ?? DEFAULT_MIN_HOURS },
     };
   }
@@ -88,7 +87,7 @@ export class VampireDrainCard extends TeslaMateBaseCard<VampireDrainCardConfig> 
           ${this.renderHeader()}
           <div class="state">
             No standby periods longer than ${this._config.min_duration_hours ?? DEFAULT_MIN_HOURS} h in the last
-            ${this._config.days ?? DEFAULT_DAYS} days.
+            ${rangeLabel(this.days())}.
           </div>
         </ha-card>
       `;

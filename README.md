@@ -24,13 +24,17 @@ directly and serves the results to the cards over the Home Assistant websocket A
 | `custom:teslamate-battery-health-card` | Battery capacity, ranges, estimated degradation, current SOC and stored energy, efficiency, and battery capacity plotted against odometer |
 | `custom:teslamate-charges-card` | Period summary, the full charge table by charger type, and incomplete charges |
 | `custom:teslamate-charging-stats-card` | Charge counts, energy added, cost totals and per-kWh averages, charge delta, AC/DC split, the DC charging curve, and top charging stations |
-| `custom:teslamate-drives-card` | Period summary, the drive table with geofence/address resolution, and incomplete drives |
-| `custom:teslamate-trip-card` | Retrospective trip analysis — distance, duration, efficiency, energy and cost, time spent, drives and charges, battery/range and elevation over the trip |
+| `custom:teslamate-drives-card` | Period summary, the drive table with geofence/address resolution, a route map for the selected drive, and incomplete drives |
+| `custom:teslamate-trip-card` | Retrospective trip analysis — the route map, distance, duration, efficiency, energy and cost, time spent, drives and charges, battery/range and elevation over the trip |
 | `custom:teslamate-vampire-drain-card` | Standby losses between drives and charges, with sleep-fraction attribution |
 
 These are a **curated** port, not panel-for-panel parity. Panels that duplicate what Home Assistant
-already does better — geomaps in particular — are deliberately left out, and the rationale for every
-omission is recorded in the milestone notes.
+already does better are deliberately left out, and the rationale for every omission is recorded in
+the milestone notes.
+
+Routes are drawn with Home Assistant's own `ha-map` — the element behind the built-in Map card — so
+they need no API key and add nothing to the bundle. Click a row in the Drives table to see that
+drive; the Trip card maps its whole window, as upstream's geomap does.
 
 ## Design
 
@@ -79,9 +83,16 @@ Options shared by every card:
 | `length_unit` | `km` | `km` or `mi` |
 | `temp_unit` | `C` | `C` or `F` |
 | `preferred_range` | `rated` | `rated` or `ideal` |
-| `days` | `90` | Look-back window |
+| `days` | `90` | Look-back window, and which entry of `ranges` starts selected (Trip: `3`) |
+| `ranges` | `[7, 30, 90]` | Choices in the header's range dropdown (Trip: `[3, 7, 30]`). A single entry hides it |
 | `page_size` | `25` | Rows per page |
 | `title` | card name | Override the header |
+
+Every card whose figures are time-filtered carries a range dropdown in its
+header, so the window can be changed without editing YAML. `days` is always
+offered whether or not it appears in `ranges`, and the choice resets to `days`
+on reload — the YAML stays the source of truth for a fresh dashboard. Battery
+Health has no dropdown: capacity and degradation are all-time by design.
 
 Per-card options:
 
@@ -90,6 +101,8 @@ Per-card options:
 | Drives | `min_distance` | `0` | Hide drives shorter than this |
 | Drives | `min_speed` | `0` | Hide drives below this average speed |
 | Drives | `efficiency_mode` | `slope-adjusted` | Or `by distance` |
+| Drives | `map_height` | `400` | Height of the selected drive's route map, in pixels |
+| Trip | `map_height` | `420` | Height of the route map, in pixels |
 | Charges | `charge_type` | *(both)* | `AC` or `DC` |
 | Charges | `min_duration_minutes` | `0` | Hide shorter sessions |
 | Vampire Drain | `min_duration_hours` | `6` | Ignore shorter standby periods |

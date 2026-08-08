@@ -30,6 +30,7 @@ from .const import (
 )
 from .macros import QueryContext, translate
 from .queries import QUERIES, UnknownQuery
+from .simplify import simplify_route
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +121,12 @@ class TeslaMateDB:
                 raise DatabaseError(f"Query {query_id} failed: {err}") from err
 
             rows = [{k: _jsonable(v) for k, v in record.items()} for record in records]
+            if template.is_route:
+                # Before the cache, so the ~10 ms reduction is paid once per TTL
+                # rather than on every render, and so what is held in memory is
+                # the few hundred points the browser gets rather than the few
+                # thousand PostgreSQL returned.
+                rows = simplify_route(rows)
             self._cache[key] = (time.monotonic(), rows)
 
         return rows

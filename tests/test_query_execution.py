@@ -42,7 +42,7 @@ STAGE = "/tmp/teslamate_cards_exec_check"
 DSN_USER = os.environ.get("TESLAMATE_TEST_DB_USER", "postgres")
 DSN_DB = os.environ.get("TESLAMATE_TEST_DB_NAME", "teslamate")
 
-RUNNER = '''
+RUNNER = """
 import asyncio, json, sys
 sys.path.insert(0, {stage!r})
 
@@ -90,7 +90,7 @@ async def main():
 
 
 asyncio.run(main())
-'''
+"""
 
 
 def _runtime_available() -> bool:
@@ -157,9 +157,12 @@ def test_registered_query_executes(query_id: str, executed: dict[str, dict]) -> 
     assert verdict["ok"], f"{query_id} failed to execute:\n{verdict.get('error')}"
 
 
-# Queries whose empty result is the *healthy* answer: they exist to surface
-# logging gaps, so on a database with none they correctly return nothing.
-MAY_BE_EMPTY = {"incomplete_charges", "incomplete_drives"}
+# Queries whose empty result is the *healthy* answer: the first two exist to
+# surface logging gaps, so on a database with none they correctly return
+# nothing. `drive_route` is empty for a different reason -- it is parameterised
+# on a drive the user picked, and its registered default of 0 deliberately
+# matches no drive, which is the right answer before any row is clicked.
+MAY_BE_EMPTY = {"incomplete_charges", "incomplete_drives", "drive_route"}
 
 
 @pytest.mark.parametrize("query_id", sorted(set(_query_ids()) - MAY_BE_EMPTY))

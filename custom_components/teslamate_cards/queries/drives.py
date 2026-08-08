@@ -106,6 +106,34 @@ WHERE
 ORDER BY data.drive_id DESC;
 """
 
+# One drive's track, for the map above the Drives table.
+#
+# **Not a port** -- upstream's Drives dashboard has no map panel at all (its
+# only two panels are the Drive and Incomplete Drives tables), so there is
+# nothing in `reference/grafana/drives.sql` to diff this against. It exists
+# because the card's default window is 90 days: drawing every drive at once, as
+# the Trip dashboard's geomap does over a trip, would be unreadable, so the map
+# follows the row the user picks instead.
+#
+# `car_id` is redundant next to a primary-key-derived `drive_id` and is in the
+# WHERE clause anyway: `drive_id` arrives from the client, and every other query
+# here is scoped to the configured car. A card cannot be made to show another
+# car's positions by sending an id belonging to it.
+#
+# Bucketed at upstream's 5 seconds like the Trip geomap; `simplify.py` does the
+# real reduction. See the note on TRIP_ROUTE_SQL for why this is not
+# `$__timeGroupAuto`.
+DRIVE_ROUTE_SQL = """\
+SELECT $__timeGroup(date, '5s') AS time,
+       avg(latitude)            AS latitude,
+       avg(longitude)           AS longitude
+FROM positions
+WHERE drive_id = $drive_id AND car_id = $car_id
+GROUP BY 1
+ORDER BY 1 ASC
+"""
+
+
 # Drives TeslaMate never saw the end of -- usually a logging gap.
 INCOMPLETE_DRIVES_SQL = """\
 SELECT id AS "Drive ID", start_date, end_date, distance, duration_min 

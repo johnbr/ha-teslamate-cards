@@ -1,16 +1,15 @@
 import { type TemplateResult, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { TeslaMateBaseCard } from "../base-card";
+import { rangeLabel } from "../range";
 import type { XYSeries } from "../align";
 import "../chart";
+import "../map";
 import { dateTime, duration, fixed, toNumber } from "../format";
 import { renderSplitBar } from "../gauge";
 import { type Column, renderSummary, renderTable } from "../table";
 import type { TripCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
-
-// A trip, not a quarter. Upstream's Trip dashboard is opened on one journey.
-const DEFAULT_DAYS = 3;
 
 const DRIVING_COLOR = "#2196f3";
 const AC_COLOR = "var(--success-color)";
@@ -27,11 +26,25 @@ export class TripCard extends TeslaMateBaseCard<TripCardConfig> {
     // cards use. Upstream's copies on the Trip dashboard are those same tables
     // minus their optional filters, and the tunables here are left at their
     // defaults (no minimum distance, speed or duration), so the rows match.
-    return ["trip_energy", "trip_battery", "trip_elevation", "drives", "charges"];
+    return ["trip_energy", "trip_battery", "trip_elevation", "trip_route", "drives", "charges"];
   }
 
   protected queryOptions(): QueryOptions {
-    return { ...this._config, days: this._config.days ?? DEFAULT_DAYS, vars: {} };
+    return { ...this._config, days: this.days(), vars: {} };
+  }
+
+  /** A trip, not a quarter. Upstream's Trip dashboard is opened on one journey. */
+  protected defaultDays(): number {
+    return 3;
+  }
+
+  /**
+   * Trip-sized windows, not the 90 days the other cards offer. Widening this
+   * turns "the trip" into "everything since" and the summary stats stop meaning
+   * anything — and the route map stops being one journey.
+   */
+  protected defaultRanges(): number[] {
+    return [3, 7, 30];
   }
 
   protected defaultTitle(): string {
@@ -114,6 +127,25 @@ export class TripCard extends TeslaMateBaseCard<TripCardConfig> {
     const raw = String(value ?? "");
     const iso = raw.includes("T") ? raw : raw.replace(" ", "T");
     return new Date(iso.endsWith("Z") ? iso : `${iso}Z`).getTime() / 1000;
+  }
+
+  /**
+   * The route, as upstream's geomap draws it: the whole window, driving and
+   * parked alike. It leads the card because it is what a trip *is* — the
+   * numbers below are all descriptions of this line.
+   */
+  private _route(): TemplateResult | null {
+    const rows = this._extra.trip_route ?? [];
+    if (rows.length === 0) return null;
+    return html`
+      <teslamate-map
+        .rows=${rows}
+        .color=${DRIVING_COLOR}
+        .label=${"Trip"}
+        .language=${this._hass?.locale?.language}
+        .height=${this._config.map_height ?? 420}
+      ></teslamate-map>
+    `;
   }
 
   private _batteryChart(): TemplateResult | null {
@@ -243,15 +275,15 @@ export class TripCard extends TeslaMateBaseCard<TripCardConfig> {
       return html`
         <ha-card>
           ${this.renderHeader()}
-          <div class="state">No travel recorded in the last ${this._config.days ?? DEFAULT_DAYS} days.</div>
+          <div class="state">No travel recorded in the last ${rangeLabel(this.days())}.</div>
         </ha-card>
       `;
     }
     return html`
       <ha-card>
-        ${this.renderHeader(`last ${this._config.days ?? DEFAULT_DAYS} days`)} ${this._summary(row)}
-        ${this._timeSpent(row)} ${this._energyAdded(row)} ${this._batteryChart()} ${this._elevationChart()}
-        ${this._drives()} ${this._charges()}
+        ${this.renderHeader(`last ${rangeLabel(this.days())}`)} ${this._route()}
+        ${this._summary(row)} ${this._timeSpent(row)} ${this._energyAdded(row)} ${this._batteryChart()}
+        ${this._elevationChart()} ${this._drives()} ${this._charges()}
       </ha-card>
     `;
   }

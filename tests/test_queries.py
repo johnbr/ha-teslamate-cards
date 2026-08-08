@@ -7,7 +7,7 @@ statements this integration can issue. These checks keep that property honest.
 from __future__ import annotations
 
 import pytest
-from teslamate_cards.macros import QueryContext, translate
+from teslamate_cards.macros import MacroError, QueryContext, translate
 from teslamate_cards.queries import QUERIES, Query
 from test_macros import EXTRAS, _context
 
@@ -47,7 +47,26 @@ def test_context_free_queries_really_are(query_id: str) -> None:
 def test_context_taking_queries_translate(query_id: str) -> None:
     query = QUERIES[query_id]
     if query.needs_context:
-        translate(query.sql, _context())
+        translate(query.sql, _context(extras={**query.defaults, **EXTRAS}))
+
+
+def test_every_tunable_has_a_registered_default() -> None:
+    """A query must translate from its *own* registry entry, not from the
+    corpus-wide EXTRAS the macro tests happen to supply.
+
+    ``db.async_query`` merges ``Query.defaults`` under the caller's values, so
+    that is the only guarantee a tunable is ever bound. A query referencing a
+    variable that lives solely in EXTRAS would pass every other test here and
+    then fail in production with an unresolved macro the moment a card omitted
+    it -- which is exactly what a `$drive_id` with no default did.
+    """
+    for query_id, query in sorted(QUERIES.items()):
+        if not query.needs_context:
+            continue
+        try:
+            translate(query.sql, _context(extras=dict(query.defaults)))
+        except MacroError as err:
+            pytest.fail(f"{query_id} does not translate from its own registry defaults: {err}")
 
 
 def test_query_context_defaults_are_allowlisted() -> None:

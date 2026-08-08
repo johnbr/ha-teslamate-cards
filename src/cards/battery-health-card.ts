@@ -36,6 +36,15 @@ export class BatteryHealthCard extends TeslaMateBaseCard<BatteryHealthCardConfig
     return { ...this._config, vars };
   }
 
+  /**
+   * No range dropdown: see `queryOptions` — nothing here is time-filtered, so
+   * offering one would imply a filter that does not exist and quietly suggest
+   * the figures had changed when they had not.
+   */
+  protected showRangePicker(): boolean {
+    return false;
+  }
+
   protected defaultTitle(): string {
     return "Battery Health";
   }

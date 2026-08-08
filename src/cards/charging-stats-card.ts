@@ -1,6 +1,7 @@
 import { type TemplateResult, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { TeslaMateBaseCard } from "../base-card";
+import { rangeLabel } from "../range";
 import { type XYSeries, groupSeries } from "../align";
 import "../chart";
 import { fixed, toNumber } from "../format";
@@ -9,7 +10,6 @@ import { type Column, renderSummary, renderTable } from "../table";
 import type { ChargingStatsCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
 
-const DEFAULT_DAYS = 90;
 const AC_COLOR = "var(--success-color)";
 const DC_COLOR = "var(--warning-color)";
 
@@ -34,7 +34,7 @@ export class ChargingStatsCard extends TeslaMateBaseCard<ChargingStatsCardConfig
     if (this._config.min_duration_minutes !== undefined) vars.min_duration = this._config.min_duration_minutes;
     return {
       ...this._config,
-      days: this._config.days ?? DEFAULT_DAYS,
+      days: this.days(),
       geofence_ids: this._config.geofence_ids ?? null,
       vars,
     };
@@ -236,13 +236,13 @@ export class ChargingStatsCard extends TeslaMateBaseCard<ChargingStatsCardConfig
       return html`
         <ha-card>
           ${this.renderHeader()}
-          <div class="state">No charging sessions in the last ${this._config.days ?? DEFAULT_DAYS} days.</div>
+          <div class="state">No charging sessions in the last ${rangeLabel(this.days())}.</div>
         </ha-card>
       `;
     }
     return html`
       <ha-card>
-        ${this.renderHeader(`last ${this._config.days ?? DEFAULT_DAYS} days`)} ${this._summary(row)}
+        ${this.renderHeader(`last ${rangeLabel(this.days())}`)} ${this._summary(row)}
         ${this._rates(row)} ${this._acdc(row)} ${this._deltaChart()} ${this._curveChart()} ${this._stations()}
       </ha-card>
     `;

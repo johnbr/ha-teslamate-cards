@@ -6,8 +6,13 @@ This is the **retrospective** trip view -- what a past journey actually cost in
 time, energy and money. It does not overlap the live `road-trip.yaml` dashboard,
 which is about a journey in progress.
 
-Panels deliberately not ported (see PLAN.md): the geomap, which duplicates the
-Google-Map-Card views this house already has, and the state-timeline.
+Panels deliberately not ported (see PLAN.md): the state-timeline.
+
+The geomap **is** ported, as ``TRIP_ROUTE_SQL`` -- reversing an earlier decision
+to leave it to `road-trip.yaml`'s Google-Map-Card. Those maps plot *entities*,
+whose trails come from Home Assistant's recorder; this route comes from
+TeslaMate's ``positions`` table, which the recorder has never seen. The overlap
+was only apparent.
 
 **The one real adaptation.** Upstream groups the two timeseries panels at a flat
 ``$__timeGroup(date, '5s')``. That is right for Grafana, where the Trip
@@ -180,6 +185,45 @@ TRIP_BATTERY_SQL = """
   GROUP BY 1
 )
 ORDER BY 1
+"""
+
+
+# The geomap: the whole window's track, driving and parked alike.
+#
+# Kept at upstream's flat 5-second grouping rather than `$__timeGroupAuto`,
+# which every other `positions` series here uses. Bucketing wider is how a chart
+# sheds detail evenly, but a route is not a function of time: a wider bucket
+# spends the same number of points on the eight hours parked in a driveway as on
+# the ninety seconds through a cloverleaf, so the corners go first. This stays
+# fine-grained and `simplify.py` does the reduction geometrically instead --
+# see `Query.is_route`.
+#
+# The union is upstream's and is the point of the panel: positions are selected
+# by their *drive's* start_date so the map covers the same drives the other
+# panels count, plus the drive_id-less samples logged while parked so the track
+# does not vanish between them.
+TRIP_ROUTE_SQL = """
+with unioned_positions as (
+
+    -- fetch all positions based on start_date of drives so the map aligns with data shown in other panels
+    select p.*
+    from positions p
+             inner join drives d on p.drive_id = d.id
+    where p.car_id = $car_id and $__timeFilter(d.start_date)
+
+    union all
+
+    -- get all positions logged while not driving
+    select *
+    from positions p
+    where p.car_id = $car_id and drive_id is null and $__timeFilter(date))
+
+SELECT $__timeGroup(date, '5s')                AS time,
+       avg(latitude)                           AS latitude,
+       avg(longitude)                          AS longitude
+from unioned_positions
+GROUP BY 1
+ORDER BY 1 ASC
 """
 
 
