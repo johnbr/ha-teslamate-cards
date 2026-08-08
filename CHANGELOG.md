@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.2.0...v0.3.0) (2026-08-08)
+
+
+### Features
+
+* M5 Trip card, the retrospective journey view ([f22c871](https://github.com/johnbr/ha-teslamate-cards/commit/f22c871a4410b26d9300adbb63ba02a7a3016e1d))
+
+
+### Bug Fixes
+
+* source the card version from the module URL, not a baked-in constant ([9490f51](https://github.com/johnbr/ha-teslamate-cards/commit/9490f5156ad7a7843861c6f49791d6599cea078f))
+
 ## [0.2.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.1.0...v0.2.0) (2026-08-08)
 
 
