@@ -15,7 +15,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .battery_health import BATTERY_CAPACITY_HISTORY_SQL, BATTERY_HEALTH_SQL
 from .charges import CHARGES_SQL, INCOMPLETE_CHARGES_SQL
+from .charging_stats import (
+    CHARGE_DELTA_SQL,
+    CHARGING_COST_PER_DISTANCE_SQL,
+    CHARGING_TOTALS_SQL,
+    DC_CHARGING_CURVE_SQL,
+    TOP_STATIONS_COST_SQL,
+    TOP_STATIONS_ENERGY_SQL,
+)
 from .drives import DRIVES_SQL, INCOMPLETE_DRIVES_SQL
 from .vampire_drain import VAMPIRE_DRAIN_SQL
 
@@ -79,5 +88,45 @@ QUERIES: dict[str, Query] = {
         description="Standby losses between drives and charges (Vampire Drain dashboard).",
         # Minimum standby length in hours.
         defaults={"duration": 6},
+    ),
+    "battery_health": Query(
+        sql=BATTERY_HEALTH_SQL,
+        description="Capacity, range, degradation and current SOC (Battery Health dashboard).",
+        # Grafana textbox overrides for a known-good pack; 0 means "derive it".
+        # Numeric, and cast in the SQL -- see the note in battery_health.py.
+        defaults={"custom_kwh_new": 0, "custom_max_range": 0},
+    ),
+    "battery_capacity_history": Query(
+        sql=BATTERY_CAPACITY_HISTORY_SQL,
+        description="Usable capacity against odometer, per charge and as a half-monthly median.",
+    ),
+    "charging_totals": Query(
+        sql=CHARGING_TOTALS_SQL,
+        description="Every scalar panel of the Charging Stats dashboard, in one row.",
+        # Minimum session length in minutes; compared against a smallint column.
+        defaults={"min_duration": 0},
+    ),
+    "charging_cost_per_distance": Query(
+        sql=CHARGING_COST_PER_DISTANCE_SQL,
+        description="Blended energy cost per 100 distance units.",
+    ),
+    "charge_delta": Query(
+        sql=CHARGE_DELTA_SQL,
+        description="Start and end SOC per charging session, for the Charge Delta timeseries.",
+        defaults={"min_duration": 0},
+    ),
+    "dc_charging_curve": Query(
+        sql=DC_CHARGING_CURVE_SQL,
+        description="Charger power against SOC for fast-charging sessions, plus the median curve.",
+    ),
+    "top_stations_energy": Query(
+        sql=TOP_STATIONS_ENERGY_SQL,
+        description="Charging locations ranked by energy added.",
+        defaults={"min_duration": 0},
+    ),
+    "top_stations_cost": Query(
+        sql=TOP_STATIONS_COST_SQL,
+        description="Charging locations ranked by cost.",
+        defaults={"min_duration": 0},
     ),
 }

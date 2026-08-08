@@ -102,6 +102,9 @@ def test_registered_query_actually_runs(query_id: str) -> None:
     that does not exist for the argument types actually passed, for instance."""
     query = QUERIES[query_id]
     if query.needs_context:
-        pytest.skip("execution needs real bind values; covered by the integration probe")
+        # Executing with real binds needs asyncpg, which lives in the Home
+        # Assistant container rather than on the host -- see
+        # tests/test_query_execution.py, which runs every one of these for real.
+        pytest.skip("execution with binds is covered by test_query_execution.py")
     proc = _prepares(query.sql)
     assert proc.returncode == 0

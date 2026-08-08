@@ -192,6 +192,133 @@ export const cardStyles = css`
     margin-top: 8px;
   }
 
+  /* ── Bars, split bars and gauges (see gauge.ts) ────────────────────── */
+
+  .bars {
+    padding: 4px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .bar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .bar-label {
+    font-size: 12px;
+    color: var(--secondary-text-color);
+  }
+
+  .bar-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--primary-text-color);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar-track {
+    position: relative;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--divider-color);
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 5px;
+  }
+
+  /* Charge-limit guidance, drawn over the fill rather than colouring it: the
+     right SOC depends on what the car is about to do. */
+  .bar-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--card-background-color, #fff);
+    opacity: 0.85;
+  }
+
+  .split {
+    padding: 4px 16px 12px;
+  }
+
+  .split-track {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--divider-color);
+  }
+
+  .split-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--secondary-text-color);
+  }
+
+  .split-pct {
+    color: var(--primary-text-color);
+    font-weight: 500;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 5px;
+  }
+
+  .gauge {
+    text-align: center;
+    min-width: 0;
+  }
+
+  .gauge-svg {
+    width: 100%;
+    max-width: 130px;
+    height: auto;
+  }
+
+  .gauge-track {
+    fill: none;
+    stroke: var(--divider-color);
+    stroke-width: 9;
+    stroke-linecap: round;
+  }
+
+  .gauge-fill {
+    fill: none;
+    stroke-width: 9;
+    stroke-linecap: round;
+  }
+
+  .gauge-value {
+    font-size: 20px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    margin-top: -6px;
+  }
+
+  .gauge-label {
+    font-size: 11px;
+    color: var(--secondary-text-color);
+  }
+
+  .chart-wrap {
+    padding: 4px 8px 8px 4px;
+  }
+
   /* Secondary columns: worth having on a desktop, noise on a phone. These
      tables are already wide enough to need horizontal scrolling. */
   @media (max-width: 700px) {

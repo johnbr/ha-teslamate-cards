@@ -35,6 +35,8 @@ MODULES = [
     "macros",
     "queries",
     "queries.vampire_drain",
+    "queries.battery_health",
+    "queries.charging_stats",
     "db",
     "frontend",
     "websocket",

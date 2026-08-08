@@ -54,6 +54,30 @@ export interface ChargesCardConfig extends BaseCardConfig {
   page_size?: number;
 }
 
+export interface BatteryHealthCardConfig extends BaseCardConfig {
+  /**
+   * Override the derived pack capacity, in kWh. Upstream exposes this because
+   * the derived figure is inferred from charging history and a well-documented
+   * pack is more trustworthy. 0 or unset means "derive it".
+   */
+  custom_kwh_new?: number;
+  /** Override the derived best-ever range, in `length_unit`. */
+  custom_max_range?: number;
+  chart_height?: number;
+}
+
+export interface ChargingStatsCardConfig extends BaseCardConfig {
+  /** Ignore sessions shorter than this, in minutes. */
+  min_duration_minutes?: number;
+  /** Restrict to specific geofences; null or unset means all of them. */
+  geofence_ids?: number[] | null;
+  /** Prefix for money, e.g. "$". Purely presentational. */
+  currency?: string;
+  /** Traces on the DC charging curve before it becomes unreadable. */
+  max_curve_sessions?: number;
+  chart_height?: number;
+}
+
 /** Lovelace hands cards an editor-provided config; narrow it defensively. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
