@@ -21,7 +21,16 @@ export interface Column {
   title?: (row: Row) => string | undefined;
 }
 
-export function renderTable(columns: Column[], rows: Row[]): TemplateResult {
+/** Makes rows selectable — for a table that drives something else on the card. */
+export interface RowSelection {
+  onSelect: (row: Row) => void;
+  /** Highlights the current row. */
+  isSelected?: (row: Row) => boolean;
+  /** Tooltip and accessible label for a row. */
+  describe?: (row: Row) => string;
+}
+
+export function renderTable(columns: Column[], rows: Row[], selection?: RowSelection): TemplateResult {
   return html`
     <div class="scroller">
       <table>
@@ -35,7 +44,23 @@ export function renderTable(columns: Column[], rows: Row[]): TemplateResult {
         <tbody>
           ${rows.map(
             (row) => html`
-              <tr>
+              <tr
+                class="${selection ? "selectable" : ""} ${selection?.isSelected?.(row) ? "selected" : ""}"
+                role=${selection ? "button" : nothing}
+                tabindex=${selection ? 0 : nothing}
+                title=${selection?.describe?.(row) ?? nothing}
+                @click=${selection ? () => selection.onSelect(row) : nothing}
+                @keydown=${selection
+                  ? (event: KeyboardEvent) => {
+                      // A row acting as a button has to answer the keyboard like
+                      // one, or the map is reachable only with a pointer.
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selection.onSelect(row);
+                      }
+                    }
+                  : nothing}
+              >
                 ${columns.map((c) => {
                   const color = c.color?.(row);
                   const title = c.title?.(row);

@@ -25,6 +25,12 @@ export interface BaseCardConfig {
   preferred_range?: "ideal" | "rated";
   /** Look-back window in days. Grafana's dashboards default to 90. */
   days?: number;
+  /**
+   * Choices in the header's range dropdown, in days. Defaults to the card's own
+   * set; `days` is always included whether listed here or not. A single-entry
+   * list hides the dropdown.
+   */
+  ranges?: number[];
   /** TeslaMate's own web UI, for row links. */
   base_url?: string;
 }
@@ -44,6 +50,8 @@ export interface DrivesCardConfig extends BaseCardConfig {
   /** `slope-adjusted` (upstream default) or `by distance`. */
   efficiency_mode?: "slope-adjusted" | "by distance";
   page_size?: number;
+  /** Height of the route map shown for the selected drive, in pixels. */
+  map_height?: number;
 }
 
 export interface ChargesCardConfig extends BaseCardConfig {
@@ -90,6 +98,8 @@ export interface TripCardConfig extends BaseCardConfig {
   /** Rows per page in the drives table. */
   page_size?: number;
   chart_height?: number;
+  /** Height of the route map at the top of the card, in pixels. */
+  map_height?: number;
 }
 
 /** Lovelace hands cards an editor-provided config; narrow it defensively. */

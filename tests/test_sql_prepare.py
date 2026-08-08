@@ -91,7 +91,12 @@ def test_registered_query_prepares(query_id: str) -> None:
     """The reference corpus and the registry can drift -- a query is registered
     by hand, and only these run in production."""
     query = QUERIES[query_id]
-    sql = translate(query.sql, _context())[0] if query.needs_context else query.sql
+    # Registry defaults first, exactly as `db.async_query` merges them -- a
+    # tunable that exists only in the corpus-wide EXTRAS is not actually bound
+    # in production. See test_queries.test_every_tunable_has_a_registered_default.
+    ctx = _context()
+    ctx.extras = {**query.defaults, **ctx.extras}
+    sql = translate(query.sql, ctx)[0] if query.needs_context else query.sql
     proc = _prepares(sql)
     assert proc.returncode == 0, f"registered query {query_id} failed to prepare:\n{proc.stderr.strip()}"
 

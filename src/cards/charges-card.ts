@@ -1,12 +1,11 @@
 import { type TemplateResult, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { TeslaMateBaseCard } from "../base-card";
+import { rangeLabel } from "../range";
 import { dateTime, fixed, meanOf, percent, percentUnit, sumOf } from "../format";
 import { type Column, renderSummary, renderTable } from "../table";
 import type { ChargesCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
-
-const DEFAULT_DAYS = 90; // upstream's `now-3M`
 
 // Upstream's value mapping for the charger type column.
 const TYPE_COLORS: Record<string, string> = {
@@ -29,7 +28,7 @@ export class ChargesCard extends TeslaMateBaseCard<ChargesCardConfig> {
     if (this._config.min_duration_minutes !== undefined) vars.min_duration_min = this._config.min_duration_minutes;
     return {
       ...this._config,
-      days: this._config.days ?? DEFAULT_DAYS,
+      days: this.days(),
       charge_type: this._config.charge_type ?? "",
       vars,
     };
@@ -116,7 +115,7 @@ export class ChargesCard extends TeslaMateBaseCard<ChargesCardConfig> {
       return html`
         <ha-card>
           ${this.renderHeader()}
-          <div class="state">No charges in the last ${this._config.days ?? DEFAULT_DAYS} days.</div>
+          <div class="state">No charges in the last ${rangeLabel(this.days())}.</div>
         </ha-card>
       `;
     }

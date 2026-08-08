@@ -27,6 +27,46 @@ export const cardStyles = css`
     padding: 16px 16px 8px;
   }
 
+  /* Title and subtitle travel together so the range picker can sit opposite
+     them, rather than the subtitle being pushed to the middle. */
+  .header-text {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .header-text .subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  select.range {
+    flex: none;
+    align-self: center;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--primary-text-color);
+    background: var(--secondary-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+
+  select.range:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+  }
+
+  /* The options render in the browser's own popup, outside the shadow root and
+     therefore outside this stylesheet — on a dark theme they would otherwise be
+     black-on-black wherever the platform honours the page's colours. */
+  select.range option {
+    background: var(--card-background-color, var(--ha-card-background));
+    color: var(--primary-text-color);
+  }
+
   .title {
     font-size: var(--ha-card-header-font-size, 24px);
     font-weight: 400;
@@ -90,6 +130,26 @@ export const cardStyles = css`
 
   tbody tr:hover td {
     background: var(--secondary-background-color);
+  }
+
+  /* Rows that drive something else on the card — the Drives map. */
+  tbody tr.selectable {
+    cursor: pointer;
+  }
+
+  tbody tr.selectable:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+  }
+
+  tbody tr.selected td {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  }
+
+  /* A left edge on the first cell, so the selected row is still identifiable
+     once the table is scrolled sideways and the marker column is off screen. */
+  tbody tr.selected td:first-child {
+    box-shadow: inset 3px 0 0 0 var(--primary-color);
   }
 
   a {
@@ -181,6 +241,15 @@ export const cardStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* The from → to line under the Drives route map. */
+  .route-caption {
+    padding: 6px 16px 12px;
+    font-size: 12px;
+    color: var(--secondary-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .subheader {
