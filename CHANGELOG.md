@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.3.0...v0.3.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* never ask uPlot for a zero-size point marker ([#3](https://github.com/johnbr/ha-teslamate-cards/issues/3)) ([72ea3c7](https://github.com/johnbr/ha-teslamate-cards/commit/72ea3c729c50d3a2860636ee9d7e721ea6ccb91d))
+
 ## [0.3.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.2.0...v0.3.0) (2026-08-08)
 
 
