@@ -1,0 +1,16 @@
+# Changelog
+
+## [0.2.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.1.0...v0.2.0) (2026-08-08)
+
+
+### Features
+
+* M1 data layer -- pool, macro translation, config flow, websocket ([e67d06c](https://github.com/johnbr/ha-teslamate-cards/commit/e67d06cd15d3a0fc2d1eba1c66f44cb96adbfe84))
+* M2 Vampire Drain card, end to end ([f566039](https://github.com/johnbr/ha-teslamate-cards/commit/f566039063c4ef38d6f3a6b865a98e43f2ecf322))
+* M3 Drives and Charges cards on a shared table component ([0bdee28](https://github.com/johnbr/ha-teslamate-cards/commit/0bdee28d185a53495512da842c0fc89ec2fb3ce9))
+* M4 Battery Health and Charging Stats cards, with uPlot charts ([d14a0c4](https://github.com/johnbr/ha-teslamate-cards/commit/d14a0c46ee18b686da6f984d5795396b1932e3d1))
+
+
+### Bug Fixes
+
+* build the TLS context off the event loop ([a987ab9](https://github.com/johnbr/ha-teslamate-cards/commit/a987ab939fae6545b435e4ff35d1a9c340b04f29))
