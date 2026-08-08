@@ -16,6 +16,8 @@ SOC-histogram tables.
 
 from __future__ import annotations
 
+from ._energy_stitch import energy_stitch_ctes
+
 # The filter every panel on this dashboard shares.
 _BASE_FILTER = """
         $__timeFilter(cp.end_date)
@@ -111,84 +113,8 @@ SELECT
 # The CTE named `positions` shadows the table of the same name. That is safe in
 # a non-recursive WITH -- a CTE's own name is not in scope inside its body, so
 # `from positions p` there reads the real table.
-CHARGING_COST_PER_DISTANCE_SQL = """
-with drives_start_event as (
-
-    select
-        'drive_start' as event, start_date as date, start_${preferred_range}_range_km as range, start_km as odometer, car_id, distance is null as is_incomplete
-    from drives
-    where car_id = $car_id and $__timeFilter(start_date) and 48 <= ((${__to:date:seconds} - ${__from:date:seconds})::numeric / 3600)
-
-),
-
-drives_end_event as (
-
-    select
-        'drive_end' as event, case when end_date is null then start_date + interval '1 second' else end_date end as date, end_${preferred_range}_range_km as range, end_km as odometer, car_id, distance is null as is_incomplete
-    from drives
-    where car_id = $car_id and $__timeFilter(start_date) and 48 <= ((${__to:date:seconds} - ${__from:date:seconds})::numeric / 3600)
-
-),
-
-charging_processes_start_event as (
-
-    select
-        'charging_process_start' as event, start_date as date, start_${preferred_range}_range_km as range, p.odometer, cp.car_id, end_date is null as is_incomplete
-    from charging_processes cp
-        inner join positions p on cp.position_id = p.id
-    where cp.car_id = $car_id and $__timeFilter(end_date) and 48 <= ((${__to:date:seconds} - ${__from:date:seconds})::numeric / 3600)
-
-),
-
-charging_processes_end_event as (
-
-    select
-        'charging_process_end' as event, case when end_date is null then start_date + interval '1 second' else end_date end as date, end_${preferred_range}_range_km as range, p.odometer, cp.car_id, end_date is null as is_incomplete
-    from charging_processes cp
-        inner join positions p on cp.position_id = p.id
-    where cp.car_id = $car_id and $__timeFilter(end_date) and 48 <= ((${__to:date:seconds} - ${__from:date:seconds})::numeric / 3600)
-
-),
-
-positions as (
-
-    select
-        case
-            when drive_id is not null and lead(drive_id) over w is not null then 'drive_start'
-            else 'something'
-        end as event,
-        date, ${preferred_range}_battery_range_km as range, p.odometer, p.car_id, false as is_incomplete
-    from positions p
-    where ideal_battery_range_km is not null and car_id = $car_id and 48 > ((${__to:date:seconds} - ${__from:date:seconds})::numeric / 3600)
-    and (drive_id in (select id from drives where $__timeFilter(start_date)) or drive_id is null and $__timeFilter(date))
-    window w as (order by date)
-
-),
-
-combined as (
-
-    select * from drives_start_event
-    union all
-    select * from drives_end_event
-    union all
-    select * from charging_processes_start_event
-    union all
-    select * from charging_processes_end_event
-    union all
-    select * from positions
-
-),
-
-final as (
-
-    select
-        car_id,
-        case when is_incomplete then 0 else lead(odometer) over w - odometer end as distance,
-        case when is_incomplete then 0 else case when event != 'drive_start' then greatest(range - lead(range) over w, 0) else range - lead(range) over w end end as range_loss
-    from combined
-    window w as (order by date asc)
-
-),
+CHARGING_COST_PER_DISTANCE_SQL = f"""
+with {energy_stitch_ctes("end_date")},
 
 derived as (
 
@@ -207,7 +133,7 @@ charges as (
     sum(cost) / sum(charge_energy_added) as cost_per_kwh
   FROM charging_processes cp
   where cp.car_id = $car_id and $__timeFilter(end_date)
-    and ('${geofence:pipe}' = '-1' OR cp.geofence_id in ($geofence))
+    and ('${{geofence:pipe}}' = '-1' OR cp.geofence_id in ($geofence))
 
 )
 

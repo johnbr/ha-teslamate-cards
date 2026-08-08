@@ -78,6 +78,20 @@ export interface ChargingStatsCardConfig extends BaseCardConfig {
   chart_height?: number;
 }
 
+export interface TripCardConfig extends BaseCardConfig {
+  /**
+   * Look-back window. Defaults to 3 rather than the shared 90: this is the
+   * retrospective view of a single journey, and upstream's dashboard is opened
+   * on one trip's time range.
+   */
+  days?: number;
+  /** Prefix for money, e.g. "$". Purely presentational. */
+  currency?: string;
+  /** Rows per page in the drives table. */
+  page_size?: number;
+  chart_height?: number;
+}
+
 /** Lovelace hands cards an editor-provided config; narrow it defensively. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

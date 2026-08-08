@@ -23,7 +23,11 @@ def test_every_query_is_a_single_select(query_id: str) -> None:
     sql = QUERIES[query_id].sql.strip().rstrip(";")
     lowered = sql.lower()
 
-    assert lowered.startswith(("select", "with")), f"{query_id} does not start with SELECT/WITH"
+    # A parenthesised leg is still a SELECT: upstream writes the Trip battery
+    # panel as `( SELECT ... ) UNION ALL ( SELECT ... )`, so the opening paren
+    # has to be seen through rather than the query reshaped to satisfy a check.
+    opening = lowered.lstrip("( \n\t")
+    assert opening.startswith(("select", "with")), f"{query_id} does not start with SELECT/WITH"
     # A stray `;` would allow a second statement to ride along.
     assert ";" not in sql, f"{query_id} contains a statement separator"
     for forbidden in ("insert ", "update ", "delete ", "drop ", "alter ", "truncate ", "grant "):

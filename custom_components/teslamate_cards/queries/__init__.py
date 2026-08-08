@@ -26,6 +26,12 @@ from .charging_stats import (
     TOP_STATIONS_ENERGY_SQL,
 )
 from .drives import DRIVES_SQL, INCOMPLETE_DRIVES_SQL
+from .trip import (
+    TRIP_BATTERY_SQL,
+    TRIP_ELEVATION_SQL,
+    TRIP_ENERGY_SQL,
+    TRIP_SUMMARY_SQL,
+)
 from .vampire_drain import VAMPIRE_DRAIN_SQL
 
 
@@ -128,5 +134,21 @@ QUERIES: dict[str, Query] = {
         sql=TOP_STATIONS_COST_SQL,
         description="Charging locations ranked by cost.",
         defaults={"min_duration": 0},
+    ),
+    "trip_summary": Query(
+        sql=TRIP_SUMMARY_SQL,
+        description="Distance, time split, speeds and cost for a trip (Trip dashboard).",
+    ),
+    "trip_energy": Query(
+        sql=TRIP_ENERGY_SQL,
+        description="Gross energy consumed over a trip, including standby losses.",
+    ),
+    "trip_battery": Query(
+        sql=TRIP_BATTERY_SQL,
+        description="Battery level and range over time, bucketed to the window.",
+    ),
+    "trip_elevation": Query(
+        sql=TRIP_ELEVATION_SQL,
+        description="Elevation over time, bucketed to the window.",
     ),
 }

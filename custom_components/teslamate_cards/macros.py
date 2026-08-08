@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from .const import LENGTH_UNITS, PREFERRED_RANGES, TEMP_UNITS
+from .const import ELEVATION_UNIT_FOR, ELEVATION_UNITS, LENGTH_UNITS, PREFERRED_RANGES, TEMP_UNITS
 
 
 class MacroError(ValueError):
@@ -48,7 +48,8 @@ def _naive_utc(value: datetime) -> datetime:
 _LITERAL_VARS: dict[str, frozenset[str]] = {
     "preferred_range": PREFERRED_RANGES,
     "length_unit": LENGTH_UNITS,
-    "alternative_length_unit": LENGTH_UNITS,
+    # Elevation, not distance -- metres or feet. See ELEVATION_UNITS.
+    "alternative_length_unit": ELEVATION_UNITS,
     "temp_unit": TEMP_UNITS,
 }
 
@@ -61,6 +62,23 @@ _INTERVAL_UNITS = {
     "w": "weeks",
 }
 _DURATION_RE = re.compile(r"^(\d+)([smhdw])$")
+
+# Points to aim for when bucketing a series for a chart. Comfortably more than
+# the pixel width of any card, and small enough that the JSON stays modest.
+AUTO_GROUP_TARGET_POINTS = 800
+
+# Never bucket finer than upstream's own 5-second grouping.
+AUTO_GROUP_FLOOR_SECONDS = 5
+
+# Bucket widths that land on sensible clock boundaries, ascending. Snapping to
+# these keeps `date_bin` edges aligned to minutes/hours rather than an arbitrary
+# 217-second grid, which makes adjacent renders comparable.
+_NICE_BUCKET_SECONDS = (
+    5, 10, 15, 30,
+    60, 120, 300, 600, 900, 1800,
+    3600, 7200, 10800, 21600, 43200,
+    86400, 172800, 604800,
+)
 
 # A `$name` reference that is not one of our own `$1`-style placeholders.
 _LEFTOVER_RE = re.compile(r"\$(?!\d)\{?[A-Za-z_][A-Za-z0-9_:]*\}?")
@@ -81,7 +99,9 @@ class QueryContext:
     length_unit: str = "km"
     temp_unit: str = "C"
     preferred_range: str = "rated"
-    alternative_length_unit: str = "mi"
+    #: Elevation unit (m/ft). **Derived** from ``length_unit`` in __post_init__,
+    #: so anything passed here is overwritten -- see ELEVATION_UNITS.
+    alternative_length_unit: str = "m"
     timezone: str = "UTC"
     # None means "no geofence filter", matching Grafana's -1 sentinel.
     geofence_ids: list[int] | None = None
@@ -101,6 +121,11 @@ class QueryContext:
         """
         self.time_from = _naive_utc(self.time_from)
         self.time_to = _naive_utc(self.time_to)
+        # Elevation unit follows the distance unit, exactly as upstream's own
+        # template variable derives it. Deriving rather than accepting means the
+        # two can never disagree -- and a mismatched pair fails *silently*,
+        # because convert_m() returns NULL for an unrecognised unit.
+        self.alternative_length_unit = ELEVATION_UNIT_FOR.get(self.length_unit, "m")
 
     def literal(self, name: str) -> str:
         """Return an allowlisted value safe to splice into SQL text."""
@@ -158,6 +183,10 @@ def _substitute_literals(sql: str, ctx: QueryContext) -> str:
 
 def _substitute_time_macros(sql: str, ctx: QueryContext, binder: _Binder) -> str:
     sql = _replace_call(sql, "$__timeFilter", lambda args: _time_filter(args, ctx, binder))
+    # Before `$__timeGroup`: the scan matches on `macro + "("`, so the two do not
+    # actually collide, but keeping the longer name first makes that independent
+    # of that detail.
+    sql = _replace_call(sql, "$__timeGroupAuto", lambda args: _time_group_auto(args, ctx))
     sql = _replace_call(sql, "$__timeGroup", _time_group)
     sql = _replace_call(sql, "$__time", lambda args: f"extract(epoch from {args})*1000")
 
@@ -197,6 +226,38 @@ def _time_filter(column: str, ctx: QueryContext, binder: _Binder) -> str:
     lower = binder.bind("time_from", ctx.time_from)
     upper = binder.bind("time_to", ctx.time_to)
     return f"{column.strip()} BETWEEN {lower} AND {upper}"
+
+
+def auto_bucket_seconds(
+    span_seconds: float,
+    target_points: int = AUTO_GROUP_TARGET_POINTS,
+    floor_seconds: int = AUTO_GROUP_FLOOR_SECONDS,
+) -> int:
+    """Bucket width that renders ``span_seconds`` in roughly ``target_points``.
+
+    The Trip dashboard groups ``positions`` at a flat 5 seconds, which works in
+    Grafana only because that dashboard is opened on a single trip. A card with
+    a ``days`` option has no such guarantee: over 90 days the same grouping
+    yields ~32,000 buckets per series, and shipping that to the browser for two
+    charts is pointless when no display has the pixels to show it.
+
+    Snapped up to a clock-friendly width so bucket edges stay aligned, and never
+    finer than upstream's 5 seconds -- so a short enough window reproduces
+    upstream's grouping exactly rather than approximating it.
+    """
+    if span_seconds <= 0:
+        return floor_seconds
+    wanted = max(floor_seconds, span_seconds / max(1, target_points))
+    for candidate in _NICE_BUCKET_SECONDS:
+        if candidate >= wanted:
+            return max(candidate, floor_seconds)
+    return max(_NICE_BUCKET_SECONDS[-1], floor_seconds)
+
+
+def _time_group_auto(column: str, ctx: QueryContext) -> str:
+    """`$__timeGroupAuto(col)` -> a date_bin bucket sized for the window."""
+    span = (ctx.time_to - ctx.time_from).total_seconds()
+    return f"date_bin(INTERVAL '{auto_bucket_seconds(span)} seconds', {column.strip()}, TIMESTAMP 'epoch')"
 
 
 def _time_group(args: str) -> str:

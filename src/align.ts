@@ -25,6 +25,12 @@ export interface XYSeries {
   /** Draw as a line through the points rather than a scatter. */
   line?: boolean;
   width?: number;
+  /**
+   * Which y axis to plot against. Two series sharing one axis must share units:
+   * battery percent and range in miles on a single scale would flatten the
+   * percentage onto the floor.
+   */
+  axis?: "left" | "right";
 }
 
 export interface AlignedData {

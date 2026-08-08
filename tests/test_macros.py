@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from teslamate_cards.macros import MacroError, QueryContext, translate
+from teslamate_cards.macros import MacroError, QueryContext, auto_bucket_seconds, translate
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GRAFANA_SQL = REPO_ROOT / "reference" / "grafana"
@@ -195,6 +195,86 @@ def test_time_group_becomes_date_bin() -> None:
 def test_time_group_rejects_a_bad_interval() -> None:
     with pytest.raises(MacroError):
         translate("SELECT $__timeGroup(date, 'fortnight')", _context())
+
+
+def test_alternative_length_unit_is_an_elevation_unit() -> None:
+    """`alternative_length_unit` is metres/feet, not a second distance unit.
+
+    It fed `convert_m(numeric, text)`, whose CASE has no ELSE -- so an unexpected
+    unit returns **NULL rather than raising**, and the Trip dashboard's elevation
+    chart would render empty with nothing at all to diagnose. It was allowlisted
+    as {km, mi} until the Trip port first exercised it.
+    """
+    sql, _ = translate("SELECT convert_m(avg(elevation), '$alternative_length_unit')", _context(length_unit="mi"))
+    assert "'ft'" in sql
+
+    sql, _ = translate("SELECT convert_m(avg(elevation), '$alternative_length_unit')", _context(length_unit="km"))
+    assert "'m'" in sql
+
+
+def test_alternative_length_unit_cannot_disagree_with_length_unit() -> None:
+    """It is derived, so passing a mismatched value cannot produce one."""
+    ctx = QueryContext(
+        car_id=1,
+        time_from=datetime(2026, 1, 1, tzinfo=UTC),
+        time_to=datetime(2026, 2, 1, tzinfo=UTC),
+        length_unit="mi",
+        alternative_length_unit="km",  # nonsense, and silently NULL in SQL
+    )
+    assert ctx.alternative_length_unit == "ft"
+
+
+def test_auto_bucket_matches_upstream_on_a_short_window() -> None:
+    """Inside about an hour the adaptive width bottoms out at upstream's own 5
+    seconds, so a genuine single-trip view is not an approximation of Grafana's
+    -- it is the same grouping."""
+    assert auto_bucket_seconds(60 * 60) == 5
+    assert auto_bucket_seconds(30 * 60) == 5
+
+
+def test_auto_bucket_never_goes_finer_than_upstream() -> None:
+    assert auto_bucket_seconds(0) == 5
+    assert auto_bucket_seconds(-1) == 5
+    assert auto_bucket_seconds(1) == 5
+
+
+def test_auto_bucket_keeps_long_windows_renderable() -> None:
+    """A 90-day window at upstream's flat 5 s produces ~32,000 buckets per
+    series on this database. The point of the adaptive width is that the point
+    count stays bounded however wide the window gets."""
+    for days in (1, 7, 30, 90, 365):
+        span = days * 86_400
+        width = auto_bucket_seconds(span)
+        assert span / width <= 800 * 1.05, f"{days}d yields too many points"
+
+
+def test_auto_bucket_snaps_to_clock_friendly_widths() -> None:
+    # 2 days / 800 = 216 s, which snaps up to 5 minutes rather than staying on
+    # an arbitrary 216-second grid.
+    assert auto_bucket_seconds(2 * 86_400) == 300
+
+
+def test_auto_bucket_is_monotonic() -> None:
+    """A wider window must never produce a finer bucket."""
+    widths = [auto_bucket_seconds(span) for span in range(60, 400_000, 997)]
+    assert widths == sorted(widths)
+
+
+def test_time_group_auto_uses_the_context_window() -> None:
+    sql, _ = translate("SELECT $__timeGroupAuto(date)", _context())
+    assert "date_bin(INTERVAL '" in sql
+    assert "TIMESTAMP 'epoch')" in sql
+    # The context spans months, so it must not have fallen back to 5 seconds.
+    assert "INTERVAL '5 seconds'" not in sql
+
+
+def test_time_group_auto_does_not_collide_with_time_group() -> None:
+    """`$__timeGroup` is a prefix of `$__timeGroupAuto`; both must survive in
+    one statement."""
+    sql, _ = translate("SELECT $__timeGroupAuto(date), $__timeGroup(date, '1h')", _context())
+    assert "INTERVAL '1 hours'" in sql
+    assert sql.count("date_bin(") == 2
+    assert "$__" not in sql
 
 
 def test_geofence_all_uses_the_sentinel() -> None:

@@ -67,6 +67,20 @@ MAX_PAGE_SIZE: Final = 200
 LENGTH_UNITS: Final = frozenset({"km", "mi"})
 TEMP_UNITS: Final = frozenset({"C", "F"})
 
+# `alternative_length_unit` is NOT a second distance unit -- it is the
+# *elevation* unit, and its values are metres and feet. Upstream derives it from
+# the distance unit rather than exposing it:
+#
+#     select case when unit_of_length = 'km' then 'm'
+#                 when unit_of_length = 'mi' then 'ft' end from settings
+#
+# It matters that this is right, because `convert_m(numeric, text)` has no ELSE
+# branch: passing 'km' or 'mi' returns **NULL**, not an error, so the Trip
+# dashboard's elevation chart would render empty with nothing to diagnose. The
+# pair is derived in QueryContext so the two can never disagree.
+ELEVATION_UNITS: Final = frozenset({"m", "ft"})
+ELEVATION_UNIT_FOR: Final = {"km": "m", "mi": "ft"}
+
 # `preferred_range` is the exception and the one genuinely security-critical
 # value in this integration: the Grafana SQL splices it into *column
 # identifiers* -- `start_${preferred_range}_range_km`, `end_..._range_km` -- so

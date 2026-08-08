@@ -37,6 +37,8 @@ MODULES = [
     "queries.vampire_drain",
     "queries.battery_health",
     "queries.charging_stats",
+    "queries.trip",
+    "queries._energy_stitch",
     "db",
     "frontend",
     "websocket",

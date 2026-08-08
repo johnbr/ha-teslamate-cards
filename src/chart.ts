@@ -38,9 +38,12 @@ export interface ChartConfig {
   timeAxis?: boolean;
   xLabel?: string;
   yLabel?: string;
+  /** Label for the right-hand axis, used when a series sets `axis: "right"`. */
+  y2Label?: string;
   /** Formatters for the cursor readout, not the axis ticks. */
   xFormat?: (value: number) => string;
   yFormat?: (value: number) => string;
+  y2Format?: (value: number) => string;
   /** Force the y axis to start at zero rather than fitting the data. */
   yFromZero?: boolean;
 }
@@ -151,10 +154,14 @@ export class TeslaMateChart extends LitElement {
   /** Identity of the plot's structure — labels and colours, not values. */
   private _shape(): string {
     return JSON.stringify([
-      this.series.map((s, i) => [s.label, seriesColor(i, s.color), s.line === true, s.width ?? 0]),
+      this.series.map((s, i) => [s.label, seriesColor(i, s.color), s.line === true, s.width ?? 0, s.axis ?? "left"]),
       this.config.timeAxis === true,
       this.config.yFromZero === true,
     ]);
+  }
+
+  private _hasRightAxis(): boolean {
+    return this.series.some((s) => s.axis === "right");
   }
 
   /** Create, resize or update the plot to match the current props. */
@@ -209,6 +216,10 @@ export class TeslaMateChart extends LitElement {
       scales: {
         x: { time: cfg.timeAxis === true },
         y: { range: cfg.yFromZero ? (_u, _min, max) => [0, max] : undefined },
+        // A second scale so series in different units keep their own range.
+        // Without it, battery percent plotted beside range in miles is squashed
+        // flat against the axis.
+        ...(this._hasRightAxis() ? { y2: {} } : {}),
       },
       axes: [
         {
@@ -230,6 +241,22 @@ export class TeslaMateChart extends LitElement {
           labelSize: cfg.yLabel ? 18 : 0,
           size: 48,
         },
+        ...(this._hasRightAxis()
+          ? [
+              {
+                scale: "y2",
+                side: 1 as const,
+                stroke: text,
+                grid: { show: false },
+                ticks: { stroke: grid },
+                font: "11px system-ui, sans-serif",
+                label: cfg.y2Label,
+                labelFont: "11px system-ui, sans-serif",
+                labelSize: cfg.y2Label ? 18 : 0,
+                size: 48,
+              },
+            ]
+          : []),
       ],
       series: [
         {},
@@ -239,6 +266,7 @@ export class TeslaMateChart extends LitElement {
             label: s.label,
             stroke,
             width: s.width ?? 2,
+            ...(s.axis === "right" ? { scale: "y2" } : {}),
             // A scatter draws points only. Returning null from the path builder
             // is uPlot's documented way to suppress the connecting line.
             ...(s.line ? {} : { paths: () => null }),
@@ -283,7 +311,8 @@ export class TeslaMateChart extends LitElement {
       swatch.className = "swatch";
       swatch.style.background = seriesColor(i, s.color);
       span.append(swatch);
-      const yText = cfg.yFormat ? cfg.yFormat(Number(value)) : String(value);
+      const format = s.axis === "right" ? (cfg.y2Format ?? cfg.yFormat) : cfg.yFormat;
+      const yText = format ? format(Number(value)) : String(value);
       span.append(document.createTextNode(`${s.label} ${yText}`));
       el.append(span);
       parts.push(yText);

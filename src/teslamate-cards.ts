@@ -10,6 +10,7 @@ import "./cards/battery-health-card";
 import "./cards/charges-card";
 import "./cards/charging-stats-card";
 import "./cards/drives-card";
+import "./cards/trip-card";
 import "./cards/vampire-drain-card";
 
 /**
@@ -76,6 +77,13 @@ window.customCards.push(
     type: "teslamate-charging-stats-card",
     name: "TeslaMate Charging Stats",
     description: "Charging totals, cost per kWh, AC/DC split and the DC charging curve.",
+    preview: false,
+    documentationURL: DOCS,
+  },
+  {
+    type: "teslamate-trip-card",
+    name: "TeslaMate Trip",
+    description: "A past journey: distance, time split, energy, cost, battery and elevation.",
     preview: false,
     documentationURL: DOCS,
   }
