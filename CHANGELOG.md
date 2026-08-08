@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.3.1...v0.4.0) (2026-08-08)
+
+
+### Features
+
+* draw route maps on the Drives and Trip cards ([#5](https://github.com/johnbr/ha-teslamate-cards/issues/5)) ([6427efb](https://github.com/johnbr/ha-teslamate-cards/commit/6427efb1f4be8f6aa4b9a3dfa140e5edffd1cbc1))
+
 ## [0.3.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.3.0...v0.3.1) (2026-08-08)
 
 
