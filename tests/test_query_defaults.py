@@ -26,6 +26,9 @@ CONTEXT_VARS = {
     "alternative_length_unit",
     "temp_unit",
     "preferred_range",
+    # Like preferred_range, this one is spliced rather than bound, so it is
+    # allowlisted in const.PERIODS instead of carrying a typed default here.
+    "period",
     "geofence",
     "location",
     "charge_type",

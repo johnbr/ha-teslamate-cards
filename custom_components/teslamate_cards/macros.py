@@ -30,7 +30,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from .const import ELEVATION_UNIT_FOR, ELEVATION_UNITS, LENGTH_UNITS, PREFERRED_RANGES, TEMP_UNITS
+from .const import (
+    ELEVATION_UNIT_FOR,
+    ELEVATION_UNITS,
+    LENGTH_UNITS,
+    PERIODS,
+    PREFERRED_RANGES,
+    TEMP_UNITS,
+)
 
 
 class MacroError(ValueError):
@@ -51,6 +58,8 @@ _LITERAL_VARS: dict[str, frozenset[str]] = {
     # Elevation, not distance -- metres or feet. See ELEVATION_UNITS.
     "alternative_length_unit": ELEVATION_UNITS,
     "temp_unit": TEMP_UNITS,
+    # Spliced because it lands inside `interval '1 $period'` -- see PERIODS.
+    "period": PERIODS,
 }
 
 # Grafana duration shorthand -> PostgreSQL interval units.
@@ -102,6 +111,9 @@ class QueryContext:
     #: Elevation unit (m/ft). **Derived** from ``length_unit`` in __post_init__,
     #: so anything passed here is overwritten -- see ELEVATION_UNITS.
     alternative_length_unit: str = "m"
+    #: Rollup grain for the Statistics dashboard; upstream's own default is
+    #: ``month``. Spliced, not bound -- see PERIODS.
+    period: str = "month"
     timezone: str = "UTC"
     # None means "no geofence filter", matching Grafana's -1 sentinel.
     geofence_ids: list[int] | None = None

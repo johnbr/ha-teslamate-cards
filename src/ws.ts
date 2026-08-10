@@ -8,6 +8,8 @@ export interface QueryOptions extends BaseCardConfig {
   geofence_ids?: number[] | null;
   location?: string;
   charge_type?: string;
+  /** Statistics' rollup grain. Allowlisted server-side, like `preferred_range`. */
+  period?: string;
 }
 
 /**
@@ -30,6 +32,7 @@ export async function runQuery(hass: HomeAssistant, queryId: string, options: Qu
     length_unit: options.length_unit ?? "km",
     temp_unit: options.temp_unit ?? "C",
     preferred_range: options.preferred_range ?? "rated",
+    period: options.period ?? "month",
     geofence_ids: options.geofence_ids ?? null,
     location: options.location ?? "",
     charge_type: options.charge_type ?? "",
