@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.5.0...v0.5.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* key the card resource URL on the bundle contents ([#9](https://github.com/johnbr/ha-teslamate-cards/issues/9)) ([232ad2c](https://github.com/johnbr/ha-teslamate-cards/commit/232ad2c84665f560b9d2ec02acc2cf33d0fc23c2))
+
 ## [0.5.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.4.0...v0.5.0) (2026-08-11)
 
 
