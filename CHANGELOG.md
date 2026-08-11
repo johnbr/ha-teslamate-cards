@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.4.0...v0.5.0) (2026-08-11)
+
+
+### Features
+
+* M7 Statistics card, the per-period rollup ([#7](https://github.com/johnbr/ha-teslamate-cards/issues/7)) ([9109d5d](https://github.com/johnbr/ha-teslamate-cards/commit/9109d5da40e465c61f078f2f4500b6087616662a))
+
 ## [0.4.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.3.1...v0.4.0) (2026-08-08)
 
 
