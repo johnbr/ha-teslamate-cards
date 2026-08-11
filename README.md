@@ -3,8 +3,8 @@
 Native Lovelace cards that bring [TeslaMate](https://github.com/teslamate-org/teslamate)'s Grafana
 dashboards into Home Assistant — no iframe, no Grafana login, no separate URL.
 
-> **Status: three cards (M3).** Drives, Charges and Vampire Drain work end to end. Battery Health,
-> Charging Stats and Trip land in M4–M5. See [Milestones](#milestones).
+> **Status: seven cards, all working end to end.** Card editors, screenshots and the HACS
+> default-store submission are what remain. See [Milestones](#milestones).
 
 ## Why this exists
 
@@ -25,6 +25,7 @@ directly and serves the results to the cards over the Home Assistant websocket A
 | `custom:teslamate-charges-card` | Period summary, the full charge table by charger type, and incomplete charges |
 | `custom:teslamate-charging-stats-card` | Charge counts, energy added, cost totals and per-kWh averages, charge delta, AC/DC split, the DC charging curve, and top charging stations |
 | `custom:teslamate-drives-card` | Period summary, the drive table with geofence/address resolution, a route map for the selected drive, and incomplete drives |
+| `custom:teslamate-statistics-card` | Distance, time driven, energy, cost, and net/gross consumption rolled up per day, week, month or year |
 | `custom:teslamate-trip-card` | Retrospective trip analysis — the route map, distance, duration, efficiency, energy and cost, time spent, drives and charges, battery/range and elevation over the trip |
 | `custom:teslamate-vampire-drain-card` | Standby losses between drives and charges, with sleep-fraction attribution |
 
@@ -83,7 +84,7 @@ Options shared by every card:
 | `length_unit` | `km` | `km` or `mi` |
 | `temp_unit` | `C` | `C` or `F` |
 | `preferred_range` | `rated` | `rated` or `ideal` |
-| `days` | `90` | Look-back window, and which entry of `ranges` starts selected (Trip: `3`) |
+| `days` | `90` | Look-back window, and which entry of `ranges` starts selected (Trip: `3`, Statistics: `3650`) |
 | `ranges` | `[7, 30, 90]` | Choices in the header's range dropdown (Trip: `[3, 7, 30]`). A single entry hides it |
 | `page_size` | `25` | Rows per page |
 | `title` | card name | Override the header |
@@ -93,6 +94,12 @@ header, so the window can be changed without editing YAML. `days` is always
 offered whether or not it appears in `ranges`, and the choice resets to `days`
 on reload — the YAML stays the source of truth for a fresh dashboard. Battery
 Health has no dropdown: capacity and degradation are all-time by design.
+
+**Statistics** uses that header slot differently: it puts the rollup
+*period* there instead of the window, because a row is a period and the window
+just decides how far back the table goes — it defaults to ten years, matching
+upstream's own dashboard, so `ranges` does nothing on that card and `periods`
+takes its place.
 
 Per-card options:
 
@@ -105,7 +112,17 @@ Per-card options:
 | Trip | `map_height` | `420` | Height of the route map, in pixels |
 | Charges | `charge_type` | *(both)* | `AC` or `DC` |
 | Charges | `min_duration_minutes` | `0` | Hide shorter sessions |
+| Statistics | `period` | `month` | Rollup grain: `day`, `week`, `month` or `year` |
+| Statistics | `periods` | all four | Choices in the header dropdown. A single entry hides it |
+| Statistics | `high_precision` | `false` | Walk raw positions instead of drive/charge events — see below |
+| Statistics, Charging Stats, Trip | `currency` | *(none)* | Prefix for money, e.g. `"$"` |
 | Vampire Drain | `min_duration_hours` | `6` | Ignore shorter standby periods |
+
+`high_precision` is upstream's own toggle and it is off for the same reason:
+it makes the consumption figures walk every stored GPS position rather than
+stitching drive and charge boundaries, which is more accurate and far more
+expensive. Over Statistics' ten-year default window it will hit the query
+timeout — turn it on only alongside a short `days`.
 
 To put several cards behind tabs on one dashboard, wrap them in
 [`tabbed-card`](https://github.com/kinghat/tabbed-card) — one card per tab, only the selected one
@@ -131,9 +148,11 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO teslamate_ro
 | **M1** | Database pool, Grafana-macro translation layer, config flow, websocket API — **done** |
 | **M2** | Vampire Drain card — one table, proving the whole path end to end — **done** |
 | **M3** | Drives and Charges cards, plus the shared table/pagination component — **done** |
-| **M4** | Battery Health and Charging Stats cards, plus the uPlot chart wrappers |
-| **M5** | Trip card |
-| **M6** | Card editors, documentation, screenshots, HACS default-store submission |
+| **M4** | Battery Health and Charging Stats cards, plus the uPlot chart wrappers — **done** |
+| **M5** | Trip card — **done** |
+| **M6** | Route maps on the Drives and Trip cards, drawn with Home Assistant's own `ha-map` — **done** |
+| **M7** | Statistics card — **done** |
+| **M8** | Card editors, documentation, screenshots, HACS default-store submission |
 
 ## Development
 

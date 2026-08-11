@@ -16,7 +16,15 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from .const import DATA_DB, DATA_WS_REGISTERED, DOMAIN, LENGTH_UNITS, PREFERRED_RANGES, TEMP_UNITS
+from .const import (
+    DATA_DB,
+    DATA_WS_REGISTERED,
+    DOMAIN,
+    LENGTH_UNITS,
+    PERIODS,
+    PREFERRED_RANGES,
+    TEMP_UNITS,
+)
 from .db import DatabaseError, TeslaMateDB
 from .macros import MacroError, QueryContext
 from .queries import QUERIES, UnknownQuery
@@ -46,6 +54,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         vol.Optional("length_unit", default="km"): vol.In(sorted(LENGTH_UNITS)),
         vol.Optional("temp_unit", default="C"): vol.In(sorted(TEMP_UNITS)),
         vol.Optional("preferred_range", default="rated"): vol.In(sorted(PREFERRED_RANGES)),
+        vol.Optional("period", default="month"): vol.In(sorted(PERIODS)),
         vol.Optional("geofence_ids"): vol.Any(None, [vol.Coerce(int)]),
         vol.Optional("location", default=""): cv.string,
         vol.Optional("charge_type", default=""): cv.string,
@@ -70,6 +79,7 @@ async def ws_query(hass: HomeAssistant, connection: websocket_api.ActiveConnecti
             length_unit=msg["length_unit"],
             temp_unit=msg["temp_unit"],
             preferred_range=msg["preferred_range"],
+            period=msg["period"],
             timezone=hass.config.time_zone or "UTC",
             geofence_ids=msg.get("geofence_ids"),
             location=msg["location"],

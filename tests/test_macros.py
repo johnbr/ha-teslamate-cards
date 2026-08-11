@@ -37,6 +37,7 @@ EXTRAS = {
     "aux": '{"RatedEfficiency": 0.19264, "CurrentCapacity": 100}',
     "custom_kwh_new": 100,
     "custom_max_range": 400,
+    "high_precision": 0,
 }
 
 
@@ -81,16 +82,17 @@ ALL_PANELS = _all_panels()
 def test_the_corpus_was_actually_found() -> None:
     """Guard against the parser silently yielding nothing and every test passing.
 
-    62 query *targets* across 49 panels -- several panels (Drive Stats, Charging
-    Stats, the xy charts) issue more than one query, and the reference files
-    record one block per target.
+    66 query *targets* across 50 panels -- several panels (Drive Stats, Charging
+    Stats, the xy charts, and the whole of Statistics) issue more than one query,
+    and the reference files record one block per target.
     """
-    assert len(ALL_PANELS) == 62, f"expected 62 query targets, parsed {len(ALL_PANELS)}"
+    assert len(ALL_PANELS) == 66, f"expected 66 query targets, parsed {len(ALL_PANELS)}"
     assert {d for d, _, _ in ALL_PANELS} == {
         "battery-health",
         "charges",
         "charging-stats",
         "drives",
+        "statistics",
         "trip",
         "vampire-drain",
     }
@@ -133,6 +135,41 @@ def test_preferred_range_allowlist_rejects(value: str) -> None:
 def test_length_unit_allowlist_rejects(value: str) -> None:
     with pytest.raises(MacroError):
         translate("SELECT convert_km(distance, '$length_unit')", _context(length_unit=value))
+
+
+def test_period_reaches_inside_a_string_literal() -> None:
+    """The reason `period` is spliced rather than bound.
+
+    `interval '1 $1'` is not a parameterised interval -- it is the literal text
+    "1 $1", and PostgreSQL rejects it. So the substitution has to happen before
+    the statement is sent, which is what makes the allowlist load-bearing.
+    """
+    sql, params = translate(
+        "SELECT date_trunc('$period', d) + interval '1 $period' FROM drives",
+        _context(period="week"),
+    )
+    assert "date_trunc('week', d)" in sql
+    assert "interval '1 week'" in sql
+    assert params == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["month'; DROP TABLE drives; --", "month' || version() || '", "", "MONTH", "hour", "months"],
+)
+def test_period_allowlist_rejects(value: str) -> None:
+    with pytest.raises(MacroError):
+        translate("SELECT date_trunc('$period', d) FROM drives", _context(period=value))
+
+
+def test_high_precision_is_bound_not_interpolated() -> None:
+    """Statistics' own mode switch is a value, so it binds like any tunable."""
+    sql, params = translate(
+        "SELECT 1 FROM drives WHERE 0 = $high_precision",
+        _context(extras={**EXTRAS, "high_precision": 0}),
+    )
+    assert "$high_precision" not in sql
+    assert 0 in params
 
 
 def test_car_id_is_bound_not_interpolated() -> None:

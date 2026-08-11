@@ -26,6 +26,7 @@ from .charging_stats import (
     TOP_STATIONS_ENERGY_SQL,
 )
 from .drives import DRIVE_ROUTE_SQL, DRIVES_SQL, INCOMPLETE_DRIVES_SQL
+from .statistics import STATISTICS_SQL
 from .trip import (
     TRIP_BATTERY_SQL,
     TRIP_ELEVATION_SQL,
@@ -149,6 +150,16 @@ QUERIES: dict[str, Query] = {
         sql=TOP_STATIONS_COST_SQL,
         description="Charging locations ranked by cost.",
         defaults={"min_duration": 0},
+    ),
+    "statistics": Query(
+        sql=STATISTICS_SQL,
+        description="Per-period rollup of drives, charges, energy and cost (Statistics dashboard).",
+        # Upstream's own toggle, and upstream's own default. 1 makes the stitch
+        # walk raw `positions` instead of drive/charge events: far more precise,
+        # and over this dashboard's natural multi-year window far more expensive
+        # than STATEMENT_TIMEOUT_MS allows. Numeric -- it is compared against a
+        # literal 0/1, not a string.
+        defaults={"high_precision": 0},
     ),
     "trip_summary": Query(
         sql=TRIP_SUMMARY_SQL,

@@ -90,6 +90,21 @@ ELEVATION_UNIT_FOR: Final = {"km": "m", "mi": "ft"}
 # TeslaMate's schema.
 PREFERRED_RANGES: Final = frozenset({"ideal", "rated"})
 
+# `period` is the Statistics dashboard's rollup grain, and it is spliced rather
+# than bound for a different reason than `preferred_range`: it lands inside a
+# string *literal*.
+#
+#     date_trunc('$period', ...)            -- a bind parameter would work here
+#     interval '1 $period'                  -- and cannot possibly work here
+#
+# `interval '1 $1'` is not a parameterised interval, it is the literal text
+# "1 $1"; reaching the same result with a bind needs `('1 ' || $1)::interval`,
+# which is a rewrite of upstream's SQL rather than a translation of it. So the
+# value is substituted as text and therefore must be checked by exact
+# membership, exactly like PREFERRED_RANGES above. These four are also the only
+# grains `date_trunc` and the dashboard's own `CASE '$period'` arms agree on.
+PERIODS: Final = frozenset({"day", "week", "month", "year"})
+
 # Sentinel used by the Grafana dashboards to mean "no geofence filter".
 GEOFENCE_ALL: Final = -1
 

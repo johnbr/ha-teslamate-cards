@@ -10,6 +10,7 @@ import "./cards/battery-health-card";
 import "./cards/charges-card";
 import "./cards/charging-stats-card";
 import "./cards/drives-card";
+import "./cards/statistics-card";
 import "./cards/trip-card";
 import "./cards/vampire-drain-card";
 
@@ -84,6 +85,13 @@ window.customCards.push(
     type: "teslamate-trip-card",
     name: "TeslaMate Trip",
     description: "A past journey: distance, time split, energy, cost, battery and elevation.",
+    preview: false,
+    documentationURL: DOCS,
+  },
+  {
+    type: "teslamate-statistics-card",
+    name: "TeslaMate Statistics",
+    description: "Distance, energy, cost and consumption rolled up per day, week, month or year.",
     preview: false,
     documentationURL: DOCS,
   }

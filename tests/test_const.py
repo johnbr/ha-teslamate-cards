@@ -14,6 +14,7 @@ from teslamate_cards.const import (
     LENGTH_UNITS,
     MAX_PAGE_SIZE,
     MAX_TIME_BUCKETS,
+    PERIODS,
     POOL_MAX_SIZE,
     PREFERRED_RANGES,
     TEMP_UNITS,
@@ -55,9 +56,31 @@ def test_length_units_reject_everything_else(value: str) -> None:
     assert value not in LENGTH_UNITS
 
 
+def test_periods_are_the_four_grains_upstream_offers() -> None:
+    """Spliced into `interval '1 <x>'`, where a bind parameter cannot reach."""
+    assert sorted(PERIODS) == ["day", "month", "week", "year"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "MONTH",
+        "month ",
+        "months",  # date_trunc accepts it; the CASE arms do not
+        "hour",  # a valid date_trunc grain, but not one this dashboard offers
+        "month'",
+        "month' || (select version()) || '",
+        "day'; DROP TABLE drives; --",
+    ],
+)
+def test_periods_reject_everything_else(value: str) -> None:
+    assert value not in PERIODS
+
+
 def test_allowlists_are_immutable() -> None:
     """A mutable allowlist can be widened at runtime by accident."""
-    for allowlist in (PREFERRED_RANGES, LENGTH_UNITS, TEMP_UNITS):
+    for allowlist in (PREFERRED_RANGES, LENGTH_UNITS, TEMP_UNITS, PERIODS):
         assert isinstance(allowlist, frozenset)
 
 

@@ -86,6 +86,30 @@ export interface ChargingStatsCardConfig extends BaseCardConfig {
   chart_height?: number;
 }
 
+/** The four grains `date_trunc` and upstream's own label arms agree on. */
+export type StatisticsPeriod = "day" | "week" | "month" | "year";
+
+export interface StatisticsCardConfig extends BaseCardConfig {
+  /** Rollup grain. Upstream's default is `month`. */
+  period?: StatisticsPeriod;
+  /**
+   * Choices in the header dropdown. This card's dropdown picks the *period*,
+   * not the look-back window — the window is what `days` is for, and on a
+   * per-year rollup it wants to be years wide rather than adjustable.
+   */
+  periods?: StatisticsPeriod[];
+  /**
+   * Walk raw `positions` instead of stitching drive and charge events: more
+   * precise consumption, and far more expensive. Upstream defaults it off, and
+   * over this card's multi-year default window it will hit the statement
+   * timeout — turn it on only with `days` set to something short.
+   */
+  high_precision?: boolean;
+  /** Prefix for money, e.g. "$". Purely presentational. */
+  currency?: string;
+  page_size?: number;
+}
+
 export interface TripCardConfig extends BaseCardConfig {
   /**
    * Look-back window. Defaults to 3 rather than the shared 90: this is the
