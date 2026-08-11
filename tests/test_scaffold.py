@@ -27,12 +27,13 @@ REQUIRED_MANIFEST_KEYS = (
     "version",
 )
 
-# The six TeslaMate Grafana dashboards this repo ports.
+# The TeslaMate Grafana dashboards this repo ports.
 DASHBOARDS = (
     "battery-health",
     "charges",
     "charging-stats",
     "drives",
+    "statistics",
     "trip",
     "vampire-drain",
 )
@@ -129,6 +130,31 @@ def test_version_is_not_baked_into_the_bundle_source() -> None:
     extra_files = config["packages"]["."]["extra-files"]
     bundled_sources = [f for f in extra_files if isinstance(f, str) and f.startswith("src/")]
     assert not bundled_sources, f"release-please must not rewrite bundled sources: {bundled_sources}"
+
+
+def test_resource_url_is_keyed_on_the_bundle_contents() -> None:
+    """The manifest version is not a sufficient cache key on its own.
+
+    The bundle is served with a 31-day ``max-age`` and no revalidation, so the
+    resource URL is the only thing that can invalidate a browser's copy. Keying
+    it on the version alone is correct only for released installs: any deploy
+    from a branch changes the bundle while the manifest still says the last
+    released version, leaving the URL identical and every browser on the old
+    module. That shipped once -- the Statistics tab rendered Home Assistant's
+    generic "Configuration error" card because its element was not defined in
+    the module the browser had, while the server was serving one that defined
+    it.
+
+    Source inspection rather than execution, the same shape as the version-drift
+    test above: ``frontend.py`` imports Home Assistant, so it cannot be imported
+    in CI, and stubbing Home Assistant is a surface this repo deliberately does
+    not maintain (see ``test_ha_imports.py``). What this has to catch is someone
+    simplifying the hash back out again.
+    """
+    source = (COMPONENT_DIR / "frontend.py").read_text(encoding="utf-8")
+    assert "hashlib" in source, "the resource URL must be keyed on the bundle's contents"
+    assert "read_bytes" in source, "the hash must cover the bytes actually served"
+    assert "?v={version}." in source, "the fingerprint must be part of the ?v= cache key"
 
 
 def _declared_card_elements() -> list[str]:

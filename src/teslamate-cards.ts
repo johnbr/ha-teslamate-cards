@@ -17,9 +17,12 @@ import "./cards/vampire-drain-card";
 /**
  * Read the version from this module's own URL rather than baking it in.
  *
- * `frontend.py` registers the Lovelace resource as `...teslamate-cards.js?v=<manifest version>`,
- * so the running version is already in the URL the browser fetched — and that
- * query string is the cache-buster, making it the single source of truth.
+ * `frontend.py` registers the Lovelace resource as
+ * `...teslamate-cards.js?v=<manifest version>.<bundle hash>`, so the running
+ * build is already in the URL the browser fetched — and that query string is
+ * the cache-buster, making it the single source of truth. The hash half is why
+ * this banner is worth reading: it identifies the bundle the browser actually
+ * has, which is not always the one the server is serving.
  *
  * Embedding it as a constant instead couples the *bundle* to the version, and
  * release-please cannot rebuild: it would bump the constant in source, leave the
