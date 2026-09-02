@@ -68,6 +68,8 @@ interface LeafletLayer {
 
 interface HaMapElement extends HTMLElement {
   Leaflet?: LeafletLike;
+  /** The Leaflet map itself. Public on `ha-map`; used here only to resize it. */
+  leafletMap?: { invalidateSize(animate?: boolean): void };
   /** Its own "Leaflet is up" flag; see `_ready` for why this is waited on. */
   _loaded?: boolean;
   layers?: LeafletLayer[];
@@ -112,6 +114,34 @@ const FIT_PAD = 0.08;
  */
 const FIT_MAX_ZOOM = 17;
 
+/**
+ * How far the frame may grow past its configured height, as a multiple of it.
+ *
+ * A route that runs north-south wants a frame shaped like itself, but an
+ * unbounded one would push everything below the map off the screen.
+ */
+const MAX_HEIGHT_FACTOR = 1.75;
+
+/** …and never taller than this much of the window, on a short screen. */
+const MAX_VIEWPORT_FRACTION = 0.8;
+
+/** Where Web Mercator is cut off, and past which the projection blows up. */
+const MERCATOR_MAX_LAT = 85.05;
+
+/**
+ * Web Mercator's y for a latitude, in degrees of longitude.
+ *
+ * The projection is what decides how a route's shape lands on the frame. A
+ * degree of longitude is the same width at every latitude, but a degree of
+ * latitude covers more and more of the screen towards the poles, so comparing
+ * raw lat/lon extents would under-state how tall a northern route really is.
+ * Expressing both in the same units makes the ratio between them the shape.
+ */
+function mercatorY(lat: number): number {
+  const clamped = Math.min(Math.max(lat, -MERCATOR_MAX_LAT), MERCATOR_MAX_LAT);
+  return (Math.log(Math.tan(Math.PI / 4 + (clamped * Math.PI) / 360)) * 180) / Math.PI;
+}
+
 /** Resolves once `<ha-map>` is defined, or false if it cannot be had. */
 let haMapPromise: Promise<boolean> | undefined;
 
@@ -151,9 +181,17 @@ export class TeslaMateMap extends LitElement {
   @property({ attribute: false }) color = DEFAULT_COLOR;
   @property({ attribute: false }) label?: string;
   @property({ attribute: false }) language?: string;
+  /**
+   * The frame's height in pixels — a floor, not a fixed size: a route taller
+   * than it is wide is given a taller frame to sit in. See `_frameHeight`.
+   */
   @property({ type: Number }) height = 400;
 
   @state() private _available: boolean | null = null;
+  /** The card's own width, which the frame's height is derived from. */
+  @state() private _width = 0;
+
+  private _resize?: ResizeObserver;
 
   static styles = css`
     :host {
@@ -174,11 +212,25 @@ export class TeslaMateMap extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     if (this._available === null) void ensureHaMap().then((ok) => (this._available = ok));
+    this._resize ??= new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      // Sub-pixel jitter is not a resize; re-fitting on it would fight itself.
+      if (Math.abs(width - this._width) >= 1) this._width = width;
+    });
+    this._resize.observe(this);
+  }
+
+  disconnectedCallback(): void {
+    this._resize?.disconnect();
+    super.disconnectedCallback();
   }
 
   protected updated(changed: PropertyValues): void {
     if (changed.has("rows") || changed.has("color") || changed.has("_available")) {
       void this._drawRoute();
+    } else if (changed.has("_width")) {
+      // The frame changed shape but the route did not: re-fit, don't re-draw.
+      void this._refit();
     }
   }
 
@@ -207,6 +259,51 @@ export class TeslaMateMap extends LitElement {
       points.push({ point: [lat, lon], timestamp });
     }
     return points;
+  }
+
+  /**
+   * The route's own height-to-width ratio on screen, or null if it has none —
+   * a car that never moved. A route with no east-west extent at all is
+   * infinitely tall, and simply takes the tallest frame on offer.
+   */
+  private _aspect(points: MapPathPoint[]): number | null {
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+    for (const { point } of points) {
+      const [lat, lon] = point;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    }
+    const across = maxLon - minLon;
+    const down = mercatorY(maxLat) - mercatorY(minLat);
+    if (across <= 0) return down > 0 ? Infinity : null;
+    return down / across;
+  }
+
+  /**
+   * The height to give the frame: as tall as the route's shape asks for.
+   *
+   * The zoom `fitBounds` picks is whichever of the two axes runs out of room
+   * first, so a north-south route in a wide, short frame is zoomed out until
+   * its *height* fits and the map is then mostly empty either side of it.
+   * Matching the frame to the route's shape spends that room on the route
+   * instead. The padding is left out of it — Leaflet pads both axes by the
+   * same fraction of their own extent, so it does not change the shape.
+   */
+  private _frameHeight(points: MapPathPoint[]): number {
+    const aspect = this._width > 0 ? this._aspect(points) : null;
+    if (aspect === null) return this.height;
+    // The configured height is the floor — a wide route keeps the frame it had
+    // — and it wins outright on a screen too short for the cap to clear it.
+    const cap = Math.max(
+      Math.min(this.height * MAX_HEIGHT_FACTOR, window.innerHeight * MAX_VIEWPORT_FRACTION),
+      this.height
+    );
+    return Math.round(Math.min(Math.max(this._width * aspect, this.height), cap));
   }
 
   private get _map(): HaMapElement | null {
@@ -276,25 +373,49 @@ export class TeslaMateMap extends LitElement {
       marker(last, END_COLOR, "End"),
     ];
 
-    // Fit explicitly rather than via `autoFit`, which would use ha-map's own
-    // 0.5 padding and cap the zoom at 14. See FIT_PAD / FIT_MAX_ZOOM.
     await el.updateComplete;
+    this._fit(el, coords);
+  }
+
+  /**
+   * Fit explicitly rather than via `autoFit`, which would use ha-map's own 0.5
+   * padding and cap the zoom at 14. See FIT_PAD / FIT_MAX_ZOOM.
+   *
+   * Leaflet caches the size of its container and only re-reads it when told to,
+   * so a frame that has just changed height has to be invalidated first or the
+   * zoom is chosen for the height the map used to have. `ha-map` does this from
+   * its own ResizeObserver, which runs after this does.
+   */
+  private _fit(el: HaMapElement, coords: Array<[number, number]>): void {
+    el.leafletMap?.invalidateSize(false);
     el.fitBounds(coords, { pad: FIT_PAD, zoom: FIT_MAX_ZOOM });
+  }
+
+  /** Re-fit the drawn route to a frame that has changed shape. */
+  private async _refit(): Promise<void> {
+    const el = this._map;
+    if (!el?._loaded) return;
+    const coords = this._points().map((p) => p.point);
+    if (coords.length < 2) return;
+    await el.updateComplete;
+    this._fit(el, coords);
   }
 
   render(): TemplateResult | typeof nothing {
     // One point draws a marker but no line, which reads as a bug rather than a
     // short route; two is the shortest thing worth calling a route.
-    if (this._points().length < 2) return nothing;
+    const points = this._points();
+    if (points.length < 2) return nothing;
+    const height = this._frameHeight(points);
 
     if (this._available === null) {
-      return html`<div class="state" style="height:${this.height}px">Loading map…</div>`;
+      return html`<div class="state" style="height:${height}px">Loading map…</div>`;
     }
     if (!this._available) {
       return html`<div class="state">Map unavailable — Home Assistant's map component did not load.</div>`;
     }
 
-    return html`<ha-map style="height:${this.height}px" .themeMode=${"auto"}></ha-map>`;
+    return html`<ha-map style="height:${height}px" .themeMode=${"auto"}></ha-map>`;
   }
 }
 
