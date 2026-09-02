@@ -108,8 +108,8 @@ Per-card options:
 | Drives | `min_distance` | `0` | Hide drives shorter than this |
 | Drives | `min_speed` | `0` | Hide drives below this average speed |
 | Drives | `efficiency_mode` | `slope-adjusted` | Or `by distance` |
-| Drives | `map_height` | `400` | Height of the selected drive's route map, in pixels |
-| Trip | `map_height` | `420` | Height of the route map, in pixels |
+| Drives | `map_height` | `520` | Minimum height of the selected drive's route map, in pixels |
+| Trip | `map_height` | `540` | Minimum height of the route map, in pixels |
 | Charges | `charge_type` | *(both)* | `AC` or `DC` |
 | Charges | `min_duration_minutes` | `0` | Hide shorter sessions |
 | Statistics | `period` | `month` | Rollup grain: `day`, `week`, `month` or `year` |
@@ -117,6 +117,12 @@ Per-card options:
 | Statistics | `high_precision` | `false` | Walk raw positions instead of drive/charge events — see below |
 | Statistics, Charging Stats, Trip | `currency` | *(none)* | Prefix for money, e.g. `"$"` |
 | Vampire Drain | `min_duration_hours` | `6` | Ignore shorter standby periods |
+
+`map_height` is a floor rather than a fixed size. The route map grows taller
+than it when the route itself is taller than it is wide — a north-south trip in
+a short, wide frame would otherwise be zoomed out until its height fit, leaving
+the map mostly empty either side of it. Growth stops at 1.75× the configured
+height, or at 80% of the window, whichever comes first.
 
 `high_precision` is upstream's own toggle and it is off for the same reason:
 it makes the consumption figures walk every stored GPS position rather than

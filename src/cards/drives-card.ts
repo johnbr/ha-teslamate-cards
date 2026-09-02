@@ -117,7 +117,7 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
                 .color=${ROUTE_COLOR}
                 .label=${String(row.end_address ?? "Drive")}
                 .language=${this._hass?.locale?.language}
-                .height=${this._config.map_height ?? 400}
+                .height=${this._config.map_height ?? 520}
               ></teslamate-map>
             `}
       <div class="route-caption">${summary}</div>

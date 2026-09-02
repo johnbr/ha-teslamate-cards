@@ -143,7 +143,7 @@ export class TripCard extends TeslaMateBaseCard<TripCardConfig> {
         .color=${DRIVING_COLOR}
         .label=${"Trip"}
         .language=${this._hass?.locale?.language}
-        .height=${this._config.map_height ?? 420}
+        .height=${this._config.map_height ?? 540}
       ></teslamate-map>
     `;
   }
