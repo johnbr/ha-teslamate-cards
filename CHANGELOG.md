@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.5.1...v0.6.0) (2026-09-02)
+
+
+### Features
+
+* size the route map to the route's own shape ([#11](https://github.com/johnbr/ha-teslamate-cards/issues/11)) ([f00d59c](https://github.com/johnbr/ha-teslamate-cards/commit/f00d59c3ca0bb9e98cd0394198f20b890164c173))
+
 ## [0.5.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.5.0...v0.5.1) (2026-08-11)
 
 
