@@ -58,3 +58,18 @@ test("upstream's drives efficiency reducer", () => {
   const perUnit = (sumOf(rows, "consumption_kWh") / sumOf(rows, "distance_mi")) * 1000;
   assert.equal(perUnit, 300);
 });
+
+test("the drives summary over one row is that drive's own efficiency column", () => {
+  // Selecting a drive rescopes the summary by reducing over a one-row array
+  // rather than reading the row's precomputed column, so the two must agree:
+  // upstream's `consumption_kWh_<unit>` is exactly this ratio per drive.
+  const drive = { distance_mi: 42.5, consumption_kWh: 12.75, consumption_kwh_mi: 300 };
+  const perUnit = (sumOf([drive], "consumption_kWh") / sumOf([drive], "distance_mi")) * 1000;
+  assert.equal(perUnit, drive.consumption_kwh_mi);
+});
+
+test("a drive with no logged distance does not divide by zero", () => {
+  const stuck = { distance_mi: 0, consumption_kWh: 0.4 };
+  const distance = sumOf([stuck], "distance_mi");
+  assert.equal(distance > 0 ? (sumOf([stuck], "consumption_kWh") / distance) * 1000 : 0, 0);
+});

@@ -243,6 +243,30 @@ export const cardStyles = css`
     white-space: nowrap;
   }
 
+  /* Says what the stat row below it is reducing over, on the Drives card when a
+     drive is selected. Absent otherwise, so its presence is itself the signal
+     that the figures are no longer the window's. */
+  .scope {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 16px 8px;
+    font-size: 12px;
+    color: var(--secondary-text-color);
+  }
+
+  .scope-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .scope button {
+    flex: none;
+    font-size: 12px;
+  }
+
   /* The from → to line under the Drives route map. */
   .route-caption {
     padding: 6px 16px 12px;

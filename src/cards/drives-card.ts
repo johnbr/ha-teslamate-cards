@@ -41,9 +41,7 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
    * on screen with no highlighted row to explain it.
    */
   protected onRangeChanged(): void {
-    this._selected = undefined;
-    this._route = [];
-    this._routeToken += 1;
+    this._clearSelection();
   }
 
   /** The drive the map is showing, or none until a row is picked. */
@@ -64,6 +62,13 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
    */
   private _routeToken = 0;
 
+  /** Back to the window: no drive, no route, and any in-flight one disowned. */
+  private _clearSelection(): void {
+    this._selected = undefined;
+    this._route = [];
+    this._routeToken += 1;
+  }
+
   private async _selectDrive(row: Row): Promise<void> {
     const driveId = Number(row.drive_id);
     if (!Number.isFinite(driveId)) return;
@@ -71,9 +76,7 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
     // Clicking the selected row again clears it, so the map can be dismissed
     // without picking some other drive.
     if (this._selected && Number(this._selected.drive_id) === driveId) {
-      this._selected = undefined;
-      this._route = [];
-      this._routeToken += 1;
+      this._clearSelection();
       return;
     }
 
@@ -97,16 +100,12 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
 
   private _renderRoute(): TemplateResult | null {
     if (!this._selected) return null;
-    const unit = this._config.length_unit ?? "km";
     const row = this._selected;
-    const summary = [
-      `${row.start_address ?? "—"} → ${row.end_address ?? "—"}`,
-      fixed(row[this.unitKey("distance")], 1, ` ${unit}`),
-      fixed(row.duration_min, 0, " min"),
-    ].join(" · ");
+    // Distance and duration used to ride along here; they are the stat row's
+    // job now that it follows the selection, so this is the endpoints alone.
+    const summary = `${row.start_address ?? "—"} → ${row.end_address ?? "—"}`;
 
     return html`
-      <div class="subheader">${dateTime(row.start_date, this._hass?.locale?.language)}</div>
       ${this._routeLoading
         ? html`<div class="state">Loading route…</div>`
         : this._route.length === 0
@@ -154,20 +153,51 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
     ];
   }
 
+  /**
+   * The stat row, reduced over whatever the card is currently about.
+   *
+   * With a drive selected, the map, the caption and the highlighted row all
+   * describe that one drive while these four numbers described the whole
+   * window — the largest figures on the card, answering a question nobody had
+   * just asked. They follow the selection instead; `_renderScope()` says which
+   * of the two is on screen.
+   */
   private _summary(): TemplateResult {
     const unit = this._config.length_unit ?? "km";
-    const distance = sumOf(this._rows, this.unitKey("distance"));
-    const energy = sumOf(this._rows, "consumption_kWh");
-    const minutes = sumOf(this._rows, "duration_min");
+    const rows = this._selected ? [this._selected] : this._rows;
+    const distance = sumOf(rows, this.unitKey("distance"));
+    const energy = sumOf(rows, "consumption_kWh");
+    const minutes = sumOf(rows, "duration_min");
     // Upstream's 4th stat: sum(consumption_kWh) / sum(distance), as Wh per unit.
+    // Over a single row that is the drive's own `consumption_kwh_<unit>` column.
     const perUnit = distance > 0 ? (energy / distance) * 1000 : 0;
+    const hours = Math.floor(minutes / 60);
 
     return renderSummary([
-      { label: `Distance (${unit})`, value: distance.toFixed(0) },
-      { label: "Duration", value: `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m` },
+      // One drive is often a few miles, where a whole number is barely a figure.
+      { label: `Distance (${unit})`, value: distance.toFixed(this._selected ? 1 : 0) },
+      { label: "Duration", value: hours > 0 ? `${hours}h ${Math.round(minutes % 60)}m` : `${Math.round(minutes)}m` },
       { label: "Energy (kWh)", value: energy.toFixed(1) },
       { label: `Ø Wh/${unit}`, value: perUnit.toFixed(0) },
     ]);
+  }
+
+  /**
+   * Names what the stats below are reducing over, and offers the way back.
+   *
+   * The button matters: with the map up, the row that would clear the selection
+   * is pushed a screen or more down the card.
+   */
+  private _renderScope(): TemplateResult | null {
+    if (!this._selected) return null;
+    return html`
+      <div class="scope">
+        <span class="scope-label"
+          >Selected drive · ${dateTime(this._selected.start_date, this._hass?.locale?.language)}</span
+        >
+        <button @click=${() => this._clearSelection()}>All ${this._rows.length} drives</button>
+      </div>
+    `;
   }
 
   private _renderIncomplete(): TemplateResult | null {
@@ -199,7 +229,8 @@ export class DrivesCard extends TeslaMateBaseCard<DrivesCardConfig> {
     const { visible, page, pages } = this.paginate(this._rows);
     return html`
       <ha-card>
-        ${this.renderHeader(`${this._rows.length} drives`)} ${this._summary()} ${this._renderRoute()}
+        ${this.renderHeader(`${this._rows.length} drives`)} ${this._renderScope()} ${this._summary()}
+        ${this._renderRoute()}
         ${renderTable(this._columns(), visible, {
           onSelect: (row) => void this._selectDrive(row),
           isSelected: (row) => this._selected !== undefined && row.drive_id === this._selected.drive_id,
