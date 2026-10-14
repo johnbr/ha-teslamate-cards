@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.6.0...v0.6.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* rescope the Drives stat row to the selected drive ([#18](https://github.com/johnbr/ha-teslamate-cards/issues/18)) ([a3cc2b9](https://github.com/johnbr/ha-teslamate-cards/commit/a3cc2b9de7c32b8efda21f5190e5d5644a584806))
+
 ## [0.6.0](https://github.com/johnbr/ha-teslamate-cards/compare/v0.5.1...v0.6.0) (2026-09-02)
 
 
