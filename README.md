@@ -24,7 +24,7 @@ directly and serves the results to the cards over the Home Assistant websocket A
 | `custom:teslamate-battery-health-card` | Battery capacity, ranges, estimated degradation, current SOC and stored energy, efficiency, and battery capacity plotted against odometer |
 | `custom:teslamate-charges-card` | Period summary, the full charge table by charger type, and incomplete charges |
 | `custom:teslamate-charging-stats-card` | Charge counts, energy added, cost totals and per-kWh averages, charge delta, AC/DC split, the DC charging curve, and top charging stations |
-| `custom:teslamate-drives-card` | Period summary, the drive table with geofence/address resolution, a route map for the selected drive, and incomplete drives |
+| `custom:teslamate-drives-card` | Period summary (narrowed to one drive when a drive is selected, with a button back to the period totals), the drive table with geofence/address resolution, a route map for the selected drive, and incomplete drives |
 | `custom:teslamate-statistics-card` | Distance, time driven, energy, cost, and net/gross consumption rolled up per day, week, month or year |
 | `custom:teslamate-trip-card` | Retrospective trip analysis — the route map, distance, duration, efficiency, energy and cost, time spent, drives and charges, battery/range and elevation over the trip |
 | `custom:teslamate-vampire-drain-card` | Standby losses between drives and charges, with sleep-fraction attribution |
