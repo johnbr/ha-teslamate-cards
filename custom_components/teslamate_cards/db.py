@@ -28,7 +28,7 @@ from .const import (
     QUERY_CACHE_TTL,
     STATEMENT_TIMEOUT_MS,
 )
-from .macros import QueryContext, translate
+from .macros import QueryContext, check_extras, translate
 from .queries import QUERIES, UnknownQuery
 from .simplify import simplify_route
 
@@ -97,6 +97,9 @@ class TeslaMateDB:
         if ctx is None:
             sql, params = template.sql, []
         else:
+            # The security boundary for tunables: every caller comes through
+            # here, and an undeclared key never reaches the SQL text.
+            check_extras(query_id, ctx.extras, template.defaults)
             # The registry's defaults carry the right Python type for each
             # tunable; a caller may override the value but rarely all of them.
             ctx = replace(ctx, extras={**template.defaults, **ctx.extras})

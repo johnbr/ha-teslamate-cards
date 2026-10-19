@@ -26,7 +26,7 @@ from .const import (
     TEMP_UNITS,
 )
 from .db import DatabaseError, TeslaMateDB
-from .macros import MacroError, QueryContext
+from .macros import MacroError, QueryContext, check_extras
 from .queries import QUERIES, UnknownQuery
 
 WS_QUERY = f"{DOMAIN}/query"
@@ -69,6 +69,14 @@ async def ws_query(hass: HomeAssistant, connection: websocket_api.ActiveConnecti
         return
 
     query_id = msg["query_id"]
+    # The friendly-error layer, before any context is built; db.async_query
+    # repeats the check as the boundary.
+    try:
+        check_extras(query_id, msg["vars"], QUERIES[query_id].defaults)
+    except MacroError as err:
+        connection.send_error(msg["id"], "invalid_params", str(err))
+        return
+
     ctx = None
     if QUERIES[query_id].needs_context:
         now = dt_util.utcnow()

@@ -37,6 +37,17 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
     return [];
   }
 
+  /**
+   * The tunables to send with one secondary query.
+   *
+   * None by default: the server refuses any `vars` key the query does not
+   * declare, and a card's tunables belong to its main query. A card whose
+   * secondaries share a tunable returns it for those ids only.
+   */
+  protected secondaryVars(_queryId: string, _vars: Record<string, unknown>): Record<string, unknown> {
+    return {};
+  }
+
   set hass(hass: HomeAssistant) {
     this._hass = hass;
     if (!this._requested) {
@@ -80,7 +91,7 @@ export abstract class TeslaMateBaseCard<C extends BaseCardConfig> extends LitEle
       const ids = this.secondaryQueryIds();
       const [main, ...rest] = await Promise.all([
         runQuery(hass, this.queryId(), options),
-        ...ids.map((id) => runQuery(hass, id, options)),
+        ...ids.map((id) => runQuery(hass, id, { ...options, vars: this.secondaryVars(id, options.vars ?? {}) })),
       ]);
       this._rows = main;
       this._extra = Object.fromEntries(ids.map((id, i) => [id, rest[i] ?? []]));
