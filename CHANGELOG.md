@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/johnbr/ha-teslamate-cards/compare/v0.6.1...v0.6.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* refuse query vars a query does not declare, and match them literally ([#20](https://github.com/johnbr/ha-teslamate-cards/issues/20)) ([b8aec6c](https://github.com/johnbr/ha-teslamate-cards/commit/b8aec6ca6c24de3a6ba1a50be6cc09a4a301261c))
+
 ## [0.6.1](https://github.com/johnbr/ha-teslamate-cards/compare/v0.6.0...v0.6.1) (2026-10-14)
 
 
