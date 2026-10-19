@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/johnbr/ha-teslamate-cards/compare/v0.6.2...v0.6.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* fit the route map on HA 2026.10's MapLibre ha-map ([#22](https://github.com/johnbr/ha-teslamate-cards/issues/22)) ([caf277e](https://github.com/johnbr/ha-teslamate-cards/commit/caf277eeb786685f3a0b4fdb6c91b800eb30e636))
+
 ## [0.6.2](https://github.com/johnbr/ha-teslamate-cards/compare/v0.6.1...v0.6.2) (2026-10-19)
 
 
