@@ -38,9 +38,18 @@ import type { Row } from "./types";
  *    which fixes both: one clean stroke, and bounds that `fitMap` can see.
  *
  * 4. **Building a layer needs Leaflet**, which the element exposes as
- *    `.Leaflet` once it has loaded — see `_leaflet`. That is a private field, so
+ *    `.Leaflet` once it has loaded — see `_ready`. That is a private field, so
  *    `paths` is kept as a fallback: if a future release stops exposing it the
  *    route still draws, just as beads.
+ *
+ *    **That future arrived with frontend 20260930 (HA 2026.10)**: `ha-map` now
+ *    draws through a MapLibre engine, with Leaflet kept only as a fallback
+ *    engine it no longer exposes, and `layers` is gone. So the fallback is the
+ *    normal path there, and it MUST fit explicitly — `fitMap()` still ignores
+ *    `paths`, and without the fit the map sat centred on home at zoom 14 with
+ *    most of the route off screen. `ha-map`'s own `fitBounds(points, {pad,
+ *    zoom})` is public, survived the engine swap, and defers itself until the
+ *    frame has a usable size.
  */
 
 /** A point on a route. `timestamp` must be a `Date` — the tooltip formats it. */
@@ -68,8 +77,10 @@ interface LeafletLayer {
 
 interface HaMapElement extends HTMLElement {
   Leaflet?: LeafletLike;
-  /** The Leaflet map itself. Public on `ha-map`; used here only to resize it. */
+  /** The Leaflet map itself. Public on `ha-map` before 2026.10; used here only to resize it. */
   leafletMap?: { invalidateSize(animate?: boolean): void };
+  /** Its map engine since 2026.10 (private); used here only to resize it. */
+  _engine?: { invalidateSize?(): void };
   /** Its own "Leaflet is up" flag; see `_ready` for why this is waited on. */
   _loaded?: boolean;
   layers?: LeafletLayer[];
@@ -311,7 +322,8 @@ export class TeslaMateMap extends LitElement {
   }
 
   /**
-   * Wait until `ha-map` has Leaflet up *and* has flipped its own `_loaded`.
+   * Wait until `ha-map` has flipped its own `_loaded`, then hand back its
+   * Leaflet if it still exposes one (before 2026.10 only — see note 4).
    *
    * Waiting for `.Leaflet` alone is not enough. `ha-map` re-fits itself whenever
    * `_loaded` changes — that branch is unconditional, not gated on `autoFit` —
@@ -319,10 +331,13 @@ export class TeslaMateMap extends LitElement {
    * between Leaflet appearing and `_loaded` flipping therefore gets the tight
    * fit below immediately overwritten by the element's own. Once `_loaded` is
    * true that branch cannot fire again, so the fit here is the last word.
+   *
+   * Only `_loaded` is waited on: on the MapLibre engine `.Leaflet` never
+   * appears, and waiting for it cost the full timeout on every draw.
    */
   private async _ready(el: HaMapElement): Promise<LeafletLike | undefined> {
     const deadline = Date.now() + LEAFLET_WAIT_MS;
-    while ((!el.Leaflet || !el._loaded) && Date.now() < deadline) {
+    while (!el._loaded && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, LEAFLET_POLL_MS));
     }
     return el.Leaflet;
@@ -338,9 +353,12 @@ export class TeslaMateMap extends LitElement {
     const leaflet = await this._ready(el);
 
     if (!leaflet) {
-      // Degraded but not broken: `paths` still draws the route, as a line with
-      // a circle at every point, and without an automatic fit.
+      // No Leaflet to build a layer with (every install since 2026.10): `paths`
+      // still draws the route, as a line with a circle at every point. It is
+      // invisible to `fitMap()`, so the fit below is what frames it at all.
       el.paths = [{ points, color: this.color, name: this.label, fullDatetime: true }];
+      await el.updateComplete;
+      this._fit(el, coords);
       return;
     }
 
@@ -384,10 +402,12 @@ export class TeslaMateMap extends LitElement {
    * Leaflet caches the size of its container and only re-reads it when told to,
    * so a frame that has just changed height has to be invalidated first or the
    * zoom is chosen for the height the map used to have. `ha-map` does this from
-   * its own ResizeObserver, which runs after this does.
+   * its own ResizeObserver, which runs after this does. MapLibre caches its
+   * size the same way, hence the engine's `invalidateSize` on 2026.10+.
    */
   private _fit(el: HaMapElement, coords: Array<[number, number]>): void {
     el.leafletMap?.invalidateSize(false);
+    el._engine?.invalidateSize?.();
     el.fitBounds(coords, { pad: FIT_PAD, zoom: FIT_MAX_ZOOM });
   }
 
