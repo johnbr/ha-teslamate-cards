@@ -26,6 +26,7 @@ than a statement handed to the database with a stray ``$foo`` in it.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -42,6 +43,20 @@ from .const import (
 
 class MacroError(ValueError):
     """A query template could not be safely translated."""
+
+
+def check_extras(query_id: str, extras: Mapping[str, Any], allowed: Iterable[str]) -> None:
+    """Refuse any tunable the query does not declare.
+
+    ``extras`` comes straight from the websocket, so its keys are caller
+    supplied. A key is used as a variable *name* in the SQL text, so only the
+    names in the query's ``defaults`` are accepted -- anything else is either a
+    client bug or an attempt to reach part of the statement it should not.
+    """
+    unknown = sorted(set(extras) - set(allowed))
+    if unknown:
+        shown = ", ".join(repr(name[:40]) for name in unknown[:5])
+        raise MacroError(f"Query {query_id!r} has no tunable named {shown}")
 
 
 def _naive_utc(value: datetime) -> datetime:
@@ -326,14 +341,15 @@ def _substitute_scalars(sql: str, ctx: QueryContext, binder: _Binder) -> str:
     execution, though the statement prepares cleanly. So the caller's own Python
     type decides -- pass an int for a numeric tunable, a str for a text filter.
     """
-    values: dict[str, Any] = {"car_id": ctx.car_id, **ctx.extras}
+    # car_id last: a tunable can never stand in for the car being queried.
+    values: dict[str, Any] = {**ctx.extras, "car_id": ctx.car_id}
 
     for name in sorted(values, key=len, reverse=True):
         value = values[name]
         quoted = f"'${name}'"
         if quoted in sql:
             sql = sql.replace(quoted, binder.bind(name, value))
-        sql = re.sub(rf"\${name}(?![A-Za-z0-9_])", lambda _m, v=value, n=name: binder.bind(n, v), sql)
+        sql = re.sub(rf"\${re.escape(name)}(?![A-Za-z0-9_])", lambda _m, v=value, n=name: binder.bind(n, v), sql)
     return sql
 
 

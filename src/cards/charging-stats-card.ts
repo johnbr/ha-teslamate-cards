@@ -11,6 +11,8 @@ import type { ChargingStatsCardConfig } from "../types";
 import type { QueryOptions } from "../ws";
 
 const AC_COLOR = "var(--success-color)";
+// The secondaries that declare `min_duration`, so filter like the main query.
+const MIN_DURATION_QUERIES = new Set(["charge_delta", "top_stations_energy", "top_stations_cost"]);
 const DC_COLOR = "var(--warning-color)";
 
 @customElement("teslamate-charging-stats-card")
@@ -27,6 +29,10 @@ export class ChargingStatsCard extends TeslaMateBaseCard<ChargingStatsCardConfig
       "top_stations_energy",
       "top_stations_cost",
     ];
+  }
+
+  protected secondaryVars(queryId: string, vars: Record<string, unknown>): Record<string, unknown> {
+    return MIN_DURATION_QUERIES.has(queryId) ? vars : {};
   }
 
   protected queryOptions(): QueryOptions {
