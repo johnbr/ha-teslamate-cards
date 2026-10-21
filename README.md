@@ -3,8 +3,8 @@
 Native Lovelace cards that bring [TeslaMate](https://github.com/teslamate-org/teslamate)'s Grafana
 dashboards into Home Assistant — no iframe, no Grafana login, no separate URL.
 
-> **Status: seven cards, all working end to end.** Card editors, screenshots and the HACS
-> default-store submission are what remain. See [Milestones](#milestones).
+> **Status: seven cards, all working end to end, and in the HACS default store.** Card editors
+> and screenshots are what remain. See [Milestones](#milestones).
 
 ## Why this exists
 
@@ -63,7 +63,12 @@ drive; the Trip card maps its whole window, as upstream's geomap does.
 
 ## Installation
 
-1. Add this repository to HACS as a custom repository (category: Integration), install, restart.
+The integration is in the HACS default store.
+
+[![Open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=johnbr&repository=ha-teslamate-cards&category=integration)
+
+1. In HACS, search for **TeslaMate Cards**, download it (or use the button above), and restart
+   Home Assistant.
 2. Add the **TeslaMate Cards** integration and give it your TeslaMate database connection.
 3. Add a card. The bundle registers its own Lovelace resource, so nothing else is needed:
 
@@ -75,6 +80,10 @@ temp_unit: F
 preferred_range: rated
 days: 90
 ```
+
+If your HACS doesn't list it yet (the default store can take a few hours to refresh), add it as a
+custom repository instead: HACS → **⋮** → **Custom repositories** →
+`https://github.com/johnbr/ha-teslamate-cards`, category **Integration**, then continue from step 1.
 
 Options shared by every card:
 
@@ -158,7 +167,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO teslamate_ro
 | **M5** | Trip card — **done** |
 | **M6** | Route maps on the Drives and Trip cards, drawn with Home Assistant's own `ha-map` — **done** |
 | **M7** | Statistics card — **done** |
-| **M8** | Card editors, documentation, screenshots, HACS default-store submission |
+| **M8** | Card editors, documentation, screenshots, HACS default-store submission — **in the default store**; editors and screenshots remain |
 
 ## Development
 
